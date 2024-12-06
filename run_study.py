@@ -291,6 +291,8 @@ def evaluate_model(train_df: pd.DataFrame, test_df: pd.DataFrame, features: List
     plt.figure()
     shap.plots.beeswarm(shap_values, show=False, max_display=30)
     plt.title(f'SHAP Beeswarm Plot for {study_name}')
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.3)
     plt.savefig(f'figures/shap_{study_name}.pdf')
     plt.close()
 
@@ -298,6 +300,8 @@ def evaluate_model(train_df: pd.DataFrame, test_df: pd.DataFrame, features: List
     plt.figure()
     shap.plots.bar(shap_values, show=False, max_display=30)
     plt.title(f'SHAP Bar Plot for {study_name}')
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.3)
     plt.savefig(f'figures/shap_bar_{study_name}.pdf')
     plt.close()
 
