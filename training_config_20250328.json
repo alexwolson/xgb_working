@@ -1,0 +1,58 @@
+[
+    {
+        "target": "Count_EX1",
+        "onehot_encoding": true,
+        "discard_features": [],
+        "data_directory": "Organized_Data",
+        "model_save_location": "xgb_models/20250328_Count_EX1_OneHot.json",
+        "tree_method": "gpu_hist",
+        "study_name": "20250328_Count_EX1_OneHot",
+        "storage_path": "sqlite:///water_modelling.db",
+        "study_count": 25,
+        "onehot_values": {
+            "SEN": [
+                "SEN06",
+                "SEN07",
+                "SEN08",
+                "SEN09",
+                "SEN10"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.8",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ]
+        }
+    },
+    {
+        "target": "Count_EX2",
+        "onehot_encoding": true,
+        "discard_features": [],
+        "data_directory": "Organized_Data",
+        "model_save_location": "xgb_models/20250328_Count_EX2_OneHot.json",
+        "tree_method": "gpu_hist",
+        "study_name": "20250328_Count_EX2_OneHot",
+        "storage_path": "sqlite:///water_modelling.db",
+        "study_count": 25,
+        "onehot_values": {
+            "SEN": [
+                "SEN06",
+                "SEN07",
+                "SEN08",
+                "SEN09",
+                "SEN10"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.8",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ]
+        }
+    }
+]
