@@ -105,6 +105,9 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
         for col in float_columns:
             if col in features_df.columns:
                 features_df[col] = pd.to_numeric(features_df[col], errors="coerce")
+        
+        #print("before")
+        #print(features_df)
 
         # Apply one-hot encoding if enabled using training metadata
         if onehot_encoding and onehot_values is not None:
@@ -116,11 +119,19 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
                         features_df[dummy_col] = 1 if cat_val == possible_val else 0
                     features_df.drop(columns=[cat_feature], inplace=True)
 
+        #print("after onehot")
+        #print(features_df)
+
         # Drop specified columns, if any
         for col_to_drop in drop_cols:
             for column in list(features_df.columns):
-                if col_to_drop in column:
+                #print("checking col_to_drop: " + str(col_to_drop).replace("[","_").replace("]","_") + " column: " + str(column))
+                if clean_column_name(col_to_drop) == column:
                     features_df.drop(columns=[column], inplace=True)
+                    #print("dropping " + str(column))
+
+        #print("post")
+        #print(features_df)
 
         # Make prediction (assume single-row input)
         try:
