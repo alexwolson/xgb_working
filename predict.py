@@ -119,7 +119,7 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
         # Drop specified columns, if any
         for col_to_drop in drop_cols:
             for column in list(features_df.columns):
-                if col_to_drop in column:
+                if clean_column_name(col_to_drop) == column:
                     features_df.drop(columns=[column], inplace=True)
 
         # Make prediction (assume single-row input)
