@@ -171,3 +171,4 @@ cython_debug/
 /water_modelling.db
 /X.csv
 /y.csv
+training_config*

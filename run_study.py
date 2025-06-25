@@ -367,7 +367,7 @@ def main():
     parser.add_argument('--study_count', type=int, default=1, help='Number of studies to run')
     parser.add_argument('--onehot-encoding', action='store_true', help='Use one-hot encoding for categorical features.')
     parser.add_argument('--sen-geometrical', action='store_true', help='Convert SEN numbers to geometrical features.')
-    parser.add_argument('--clogging-factors', action='store_false', help='If clogging factors are included in the dataset.')
+    parser.add_argument('--clogging-factors', action='store_true', help='If clogging factors are included in the dataset.')
     parser.add_argument('--discard-features', type=str, default='',
                         help='Comma-separated list of features to discard (e.g., "SEN,L_wave_ht[mm]")')
     parser.add_argument('--tree-method', type=str, choices=['auto', 'exact', 'approx', 'hist', 'gpu_hist'],

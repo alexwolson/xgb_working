@@ -67,13 +67,13 @@ conda activate water-modelling
    python predict.py --config-file training_config_water_modelling.json \
    --data-directory New_Data
    ```
-   
+
 ### Arguments:
 - `--targets`: A space-separated list of target variables to predict (e.g., `Count_EX1`, `Count_EX2`). Default: `Count_EX1`.
 - `--study-name`: Name of the Optuna study. Default: `water_modelling`.
 - `--study_count`: Number of Optuna trials to run. Default: `1`.
-- `--onehot-encoding`: Perform one-hot encoding of categorical variables. Default: Enabled.
-- `--sen-geometrical`: Convert SEN numbers to geometrical features. Default: Enabled.
+- `--onehot-encoding`: Perform one-hot encoding of categorical variables. Default: Disabled.
+- `--sen-geometrical`: Convert SEN numbers to geometrical features. Default: Disabled.
 - `--clogging-factors`: If clogging factors are included in the dataset. Default: Disabled
 - `--discard-features`: A comma-separated list of features to discard from the dataset (e.g., `SEN,L_wave_ht[mm]`).
 - `--tree-method`: The `tree_method` parameter for XGBoost (`gpu_hist`, `hist`, etc.). Default: `gpu_hist`.
