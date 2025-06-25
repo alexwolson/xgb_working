@@ -27,7 +27,7 @@ def clean_column_name(name: str) -> str:
 
 
 def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: xgb.XGBRegressor,
-                     model_name: str, onehot_encoding: bool, drop_cols: list,
+                     model_name: str, onehot_encoding: bool, sen_geometrical: bool, clogging_factors:bool, drop_cols: list,
                      onehot_values: dict = None) -> pd.DataFrame:
     """
     Process one sheet: for each row, extract features (using a mapping computed once per sheet)
@@ -80,12 +80,40 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
     # Process each row using the precomputed column mapping
     for idx, row in df.iterrows():
         try:
+            if sen_geometrical:
+                SEN_Geometry = {
+                    "10": {"Angle":"-15°","Depth": "40 mm"},
+                    "09": {"Angle":"+15°","Depth": "40 mm"},
+                    "08": {"Angle":"0°","Depth": "20 mm"},
+                    "07": {"Angle":"-15°","Depth": "0 mm"},
+                    "06": {"Angle":"+15°","Depth": "0 mm"}
+                }
+                Angle = SEN_Geometry[sheet_components[0][3:5]]["Angle"]
+                Depth = SEN_Geometry[sheet_components[0][3:5]]["Depth"]
+
+            if clogging_factors:
+                if len(sheet_components) == 4:
+                    CF = "0"
+                elif len(sheet_components) == 5:
+                    CF = sheet_components[1]
+
             # Build features dictionary using fixed features and values from the mapped columns
-            features_dict = {
-                "SEN": sheet_components[0],
-                "waterflow": sheet_components[1],
-                "airflow": sheet_components[2],
-            }
+            features_dict = {}
+
+            if sen_geometrical:
+                features_dict['Angle'] = Angle,
+                features_dict['Depth'] = Depth,
+            else:
+                features_dict['SEN'] = sheet_components[0]
+
+            if clogging_factors:
+                features_dict['CF'] = CF
+                features_dict['waterflow'] = sheet_components[2]
+                features_dict['airflow'] = sheet_components[3]
+            else:
+                features_dict['waterflow'] = sheet_components[1]
+                features_dict['airflow'] = sheet_components[2]
+
             for col in expected_cols:
                 features_dict[col] = row[actual_cols[col]]
         except Exception as e:
@@ -108,7 +136,7 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
 
         # Apply one-hot encoding if enabled using training metadata
         if onehot_encoding and onehot_values is not None:
-            for cat_feature in ["SEN", "waterflow"]:
+            for cat_feature in ['SEN', 'Angle', 'Depth', 'waterflow', 'airflow', 'CF']:
                 if cat_feature in features_df.columns:
                     cat_val = features_df.at[0, cat_feature]
                     for possible_val in onehot_values.get(cat_feature, []):
@@ -136,7 +164,7 @@ def predict_on_sheet(df: pd.DataFrame, file_name: str, sheet_name: str, model: x
 
 
 def process_excel_file(file_path: Path, model: xgb.XGBRegressor, model_name: str,
-                       onehot_encoding: bool, drop_cols: list, onehot_values: dict = None,
+                       onehot_encoding: bool, sen_geometrical: bool, clogging_factors:bool, drop_cols: list, onehot_values: dict = None,
                        progress: "Progress" = None, progress_task: TaskID = None) -> None:
     """
     Open an Excel file, process each sheet to add predictions, update the global progress,
@@ -155,7 +183,7 @@ def process_excel_file(file_path: Path, model: xgb.XGBRegressor, model_name: str
 
     for sheet_name, df in sheets.items():
         updated_df = predict_on_sheet(df, file_name, sheet_name, model, model_name,
-                                      onehot_encoding, drop_cols, onehot_values)
+                                      onehot_encoding, sen_geometrical, clogging_factors, drop_cols, onehot_values)
         updated_sheets[sheet_name] = updated_df
         # Update the global progress bar after processing each sheet
         if progress is not None and progress_task is not None:
@@ -216,6 +244,8 @@ def main():
         model_file = config["model_save_location"]
         model_name = config["study_name"]
         onehot_encoding = config.get("onehot_encoding", False)
+        sen_geometrical = config.get("sen_geometrical", False) 
+        clogging_factors = config.get("clogging_factors", False)
         drop_cols = config.get("discard_features", [])
         onehot_values = config.get("onehot_values", {}) if onehot_encoding else {}
 
@@ -242,7 +272,7 @@ def main():
             progress_task = progress.add_task(f"Processing sheets for model {model_name}", total=total_sheets)
             # Process each Excel file with the loaded model and configuration
             for file_path in excel_files:
-                process_excel_file(file_path, model, model_name, onehot_encoding, drop_cols,
+                process_excel_file(file_path, model, model_name, onehot_encoding, sen_geometrical, clogging_factors, drop_cols,
                                    onehot_values, progress, progress_task)
         logger.info(f"Predictions added using model {model_name} from {model_file}")
 

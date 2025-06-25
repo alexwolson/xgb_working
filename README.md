@@ -10,7 +10,7 @@ This repository provides a data processing and modeling pipeline for predicting 
 
 2. **Data Loading**:  
    - Loads pre-generated `X.csv` and `y.csv`.  
-   - Handles optional one-hot encoding of categorical variables.  
+   - Handles optional one-hot encoding of categorical variables.
    - Allows discarding specific features.  
    - Splits data into training and testing sets.
 
@@ -52,18 +52,29 @@ conda activate water-modelling
    Ensure `Organized_Data` directories contain the necessary `.xlsx` files. If `X.csv` and `y.csv` are not present, they will be generated automatically.
 2. **Run the Pipeline**:
     ```bash
-    python run_study.py --targets Count_EX1 Count_EX1 \
-   --study_name water_modelling \
+    python run_study.py --targets Count_EX1 Count_EX2 \
+   --study-name NewFeaturesTest_20250625 \
    --study_count 100 \
    --onehot-encoding \
-   --discard-features "SEN,L_wave_ht[mm]" \
+   --sen-geometrical True \
+   --clogging-factors False \
+   --discard-features "time[s],SEN,L_wave_ht[mm]" \
+   --data-directory Organized_Data/SEN10 \
    --subsample-shap
     ```
+3. **Output Predictions**:
+   ```bash
+   python predict.py --config-file training_config_water_modelling.json \
+   --data-directory New_Data
+   ```
+   
 ### Arguments:
 - `--targets`: A space-separated list of target variables to predict (e.g., `Count_EX1`, `Count_EX2`). Default: `Count_EX1`.
 - `--study-name`: Name of the Optuna study. Default: `water_modelling`.
 - `--study_count`: Number of Optuna trials to run. Default: `1`.
-- `--onehot-encoding`: Perform one-hot encoding of categorical variables. Default: Disabled.
+- `--onehot-encoding`: Perform one-hot encoding of categorical variables. Default: Enabled.
+- `--sen-geometrical`: Convert SEN numbers to geometrical features. Default: Enabled.
+- `--clogging-factors`: If clogging factors are included in the dataset. Default: Disabled
 - `--discard-features`: A comma-separated list of features to discard from the dataset (e.g., `SEN,L_wave_ht[mm]`).
 - `--tree-method`: The `tree_method` parameter for XGBoost (`gpu_hist`, `hist`, etc.). Default: `gpu_hist`.
 - `--data-directory`: Directory containing the raw data files. Default: `Organized_Data`.

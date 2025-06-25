@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(message)s', datefmt='[%X]', ha
 logger = logging.getLogger(__name__)
 
 
-def generate_csv_files(data_directory: str) -> None:
+def generate_csv_files(data_directory: str, sen_geometrical: bool = False,clogging_factors: bool = False) -> None:
     """
     Generate X.csv and y.csv from Excel files in the given data_directory.
     Checks for directory existence and empty file sets.
@@ -76,12 +76,29 @@ def generate_csv_files(data_directory: str) -> None:
                     logger.warning(f"Sheet name format unexpected: {sheet_name}. Skipping.")
                     continue
 
+                if sen_geometrical:
+                    SEN_Geometry = {
+                        "10": {"Angle":"-15°","Depth": "40 mm"},
+                        "09": {"Angle":"+15°","Depth": "40 mm"},
+                        "08": {"Angle":"0°","Depth": "20 mm"},
+                        "07": {"Angle":"-15°","Depth": "0 mm"},
+                        "06": {"Angle":"+15°","Depth": "0 mm"}
+                    }
+                    Angle = SEN_Geometry[sheet_components[0][3:5]]["Angle"]
+                    Depth = SEN_Geometry[sheet_components[0][3:5]]["Depth"]
+
+                if clogging_factors:
+                    if len(sheet_components) == 4:
+                        CF = "0"
+                    elif len(sheet_components) == 5:
+                        CF = sheet_components[1]
+
                 for _, row in df.iterrows():
                     try:
-                        feature_records.append({
-                            'SEN': sheet_components[0],
-                            'waterflow': sheet_components[1],
-                            'airflow': sheet_components[2],
+                        feature_dict = {{
+                            #'SEN': sheet_components[0],
+                            #'waterflow': sheet_components[1],
+                            #'airflow': sheet_components[2],
                             'time[s]': row.iloc[0],
                             'AN_1_LL[m/s]': row.iloc[9],
                             'AN_2_LQ[m/s]': row.iloc[10],
@@ -93,7 +110,24 @@ def generate_csv_files(data_directory: str) -> None:
                             'ML_RR[mm]': row.iloc[20],
                             'L_wave_ht[mm]': row.iloc[21],
                             'R_wave_ht[mm]': row.iloc[22]
-                        })
+                        }}
+
+                        if sen_geometrical:
+                            feature_dict['Angle'] = Angle,
+                            feature_dict['Depth'] = Depth,
+                        else:
+                            feature_dict['SEN'] = sheet_components[0]
+
+                        if clogging_factors:
+                            feature_dict['CF'] = CF
+                            feature_dict['waterflow'] = sheet_components[2]
+                            feature_dict['airflow'] = sheet_components[3]
+                        else:
+                            feature_dict['waterflow'] = sheet_components[1]
+                            feature_dict['airflow'] = sheet_components[2]
+
+                        feature_records.append(feature_dict)
+
                         target_records.append({
                             'label': sheet_name,
                             'time[s]': row.iloc[0],
@@ -116,7 +150,7 @@ def generate_csv_files(data_directory: str) -> None:
         logger.warning("No data was extracted. X.csv and y.csv were not created.")
 
 
-def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False,
+def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False, sen_geometrical: bool = False, clogging_factors: bool = False,
               discard_features: Optional[List[str]] = None, data_directory: str = 'Organized_Data'
              ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
@@ -126,7 +160,7 @@ def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False,
     """
     if not os.path.exists('X.csv') or not os.path.exists('y.csv'):
         logger.info("X.csv or y.csv not found. Generating them from raw data.")
-        generate_csv_files(data_directory=data_directory)
+        generate_csv_files(data_directory=data_directory, sen_geometrical=sen_geometrical,clogging_factors=clogging_factors)
 
     if not os.path.exists('X.csv') or not os.path.exists('y.csv'):
         logger.error("Failed to load data because X.csv or y.csv do not exist.")
@@ -145,17 +179,21 @@ def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False,
 
     logger.info("Formatting data types.")
 
-    for cat_col in ['SEN', 'waterflow']:
+    # Columns to be treated as categorical
+    categorical_columns = ['SEN', 'Angle', 'Depth', 'waterflow', 'airflow', 'CF']
+
+    for cat_col in categorical_columns:
         if cat_col in X_data.columns:
             X_data[cat_col] = X_data[cat_col].astype('category')
 
     # Capture the unique categories before one-hot encoding
     onehot_values = {}
-    for cat_feature in ['SEN', 'waterflow']:
+    for cat_feature in categorical_columns:
         if cat_feature in X_data.columns:
             onehot_values[cat_feature] = list(X_data[cat_feature].cat.categories)
 
-    float_columns = ['time[s]', 'airflow', 'AN_1_LL[m/s]', 'AN_2_LQ[m/s]', 'AN_3_RQ[m/s]',
+    # Columns to be treated as floats
+    float_columns = ['time[s]', 'AN_1_LL[m/s]', 'AN_2_LQ[m/s]', 'AN_3_RQ[m/s]',
                      'AN_4_RR[m/s]', 'ML_LL[mm]', 'ML_LQ[mm]', 'ML_RQ[mm]', 'ML_RR[mm]',
                      'L_wave_ht[mm]', 'R_wave_ht[mm]']
     for col in float_columns:
@@ -164,7 +202,7 @@ def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False,
 
     if onehot_encoding:
         logger.info("Applying one-hot encoding to categorical features.")
-        for cat_feature in ['SEN', 'waterflow']:
+        for cat_feature in categorical_columns:
             if cat_feature in X_data.columns:
                 X_data = pd.get_dummies(X_data, columns=[cat_feature])
 
@@ -199,7 +237,6 @@ def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False,
     logger.info(f"Data loaded successfully with {train_df.shape[0]} training samples and {test_df.shape[0]} test samples.")
 
     return train_df, test_df, features, onehot_values
-
 
 
 def run_optuna_study(train_df: pd.DataFrame, test_df: pd.DataFrame, features: List[str], target: str, study_name: str,
@@ -329,6 +366,8 @@ def main():
     parser.add_argument('--study-name', type=str, default='water_modelling', help='Optuna study name prefix')
     parser.add_argument('--study_count', type=int, default=1, help='Number of studies to run')
     parser.add_argument('--onehot-encoding', action='store_true', help='Use one-hot encoding for categorical features.')
+    parser.add_argument('--sen-geometrical', action='store_true', help='Convert SEN numbers to geometrical features.')
+    parser.add_argument('--clogging-factors', action='store_false', help='If clogging factors are included in the dataset.')
     parser.add_argument('--discard-features', type=str, default='',
                         help='Comma-separated list of features to discard (e.g., "SEN,L_wave_ht[mm]")')
     parser.add_argument('--tree-method', type=str, choices=['auto', 'exact', 'approx', 'hist', 'gpu_hist'],
@@ -355,13 +394,17 @@ def main():
 
     for target in args.targets:
         encoding_type = 'OneHot' if args.onehot_encoding else 'Categorical'
-        full_study_name = f"{args.study_name}_{target}_{encoding_type}"
+        sen_geometrical_type = '_Geometrical' if args.sen_geometrical else ''
+        clogging_factors_type = '_Clogging' if args.clogging_factors else ''
+        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
         logger.info(f"Starting experiment for target: {target} - study: {full_study_name}")
 
         # load_data now returns onehot_values as an additional element
         train_df, test_df, features, onehot_values = load_data(
             target=target,
             onehot_encoding=args.onehot_encoding,
+            sen_geometrical=args.sen_geometrical,
+            clogging_factors=args.clogging_factors,
             discard_features=discard_features,
             data_directory=args.data_directory
         )
@@ -385,6 +428,8 @@ def main():
         config = {
             "target": target,
             "onehot_encoding": args.onehot_encoding,
+            "sen_geometrical": args.sen_geometrical,
+            "clogging_factors": args.clogging_factors,
             "discard_features": discard_features,
             "data_directory": args.data_directory,
             "model_save_location": f"xgb_models/{full_study_name}.json",
