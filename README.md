@@ -212,4 +212,4 @@ Enter the directory containing the repository:
 This will open a live feed of the job's output.
 
 # Important Note
-I put 20 hours in `study_job.sh`, this might not be enough. If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
+I put 20 hours in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
