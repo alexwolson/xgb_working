@@ -130,7 +130,7 @@ Add the following files:
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=32000M
-#SBATCH --time=0-20:0:0
+#SBATCH --time=1-0:0:0
 #SBATCH --output=%N-%j.out
 
 module load python/3.10
@@ -229,6 +229,6 @@ Wait for the status to become R (running)
 `tail -f bg<node number>-<job number>.out`
 This will open a live feed of the job's output.
 
-### Important Note
-I put 20 hours in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
-
+### Checkpointing
+I put 1 day in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
+If you find that training two variables in one job is unfeasible, train them one at a time.
