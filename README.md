@@ -102,9 +102,9 @@ Ensure that all directory paths (Organized_Data/, xgb_models/, figures/) exist o
 
 When rerunning experiments, existing models and Optuna studies are reused unless removed or changed.
 
-### HPC Guide:
+# HPC Guide:
 
-# Setup
+### Setup
 Clone the repository on your local device.
 
 Add the following files:
@@ -195,21 +195,21 @@ Transfer the folder to the `/home/` directory on the chosen server using Globus
 
 Instructions below are for Beluga, some details might differ
 
-# Remote shell into the server
+### Remote shell into the server
 `ssh <username>@beluga.alliancecan.ca`
 (make sure 2 factor authentication is on your account)
 
 Enter the directory containing the repository:
 `cd steel_flow_sensor_prediction`
 
-# Submit the job
+### Submit the job
 `sbatch study_job.sh` or `sbatch predict_job.sh` (CHECK THE PARAMETERS BEFORE RUNNING)
 
-# Monitor the job
+### Monitor the job
 `sq` to find the current running job ID
 `ls` to list all the files in the directory (you're looking for the .out file)
 `tail -f bg<node number>-<job number>.out`
 This will open a live feed of the job's output.
 
-# Important Note
+### Important Note
 I put 20 hours in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
