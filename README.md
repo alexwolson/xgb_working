@@ -28,15 +28,25 @@ This repository provides a data processing and modeling pipeline for predicting 
    - Computes SHAP values to explain feature importance.  
    - Saves SHAP beeswarm and bar plots for insights into feature contributions.
 
+6. **Predictions on Excel Sheets**
+   - Outputs predictions row-by-row directly onto excel sheets found in `New_Data`.
+
 ## Installation & Requirements
 
 - **Python**: 3.8+ recommended
 - **Dependencies**: Listed in both `requirements.txt` and `environment.yml`.
-  
+
+**Clone the repository**
+```bash
+git clone https://github.com/alexwolson/steel_flow_sensor_prediction.git
+```
+
 To set up the environment, you can either:
 
 **Option 1: Use `requirements.txt` with pip**
 ```bash
+python -m venv .venv
+source .venv/Scripts/Activate
 pip install -r requirements.txt
 ```
 
@@ -47,7 +57,6 @@ conda activate water-modelling
 ```
 
 ## Usage
-
 1. **Data Preparation**:  
    Ensure `Organized_Data` directories contain the necessary `.xlsx` files. If `X.csv` and `y.csv` are not present, they will be generated automatically.
 2. **Run the Pipeline**:
@@ -62,6 +71,7 @@ conda activate water-modelling
    --data-directory Organized_Data/SEN10 \
    --subsample-shap
     ```
+    
 3. **Output Predictions**:
    ```bash
    python predict.py --config-file training_config_water_modelling.json \
@@ -69,6 +79,7 @@ conda activate water-modelling
    ```
 
 ### Arguments:
+**run_study.py**
 - `--targets`: A space-separated list of target variables to predict (e.g., `Count_EX1`, `Count_EX2`). Default: `Count_EX1`.
 - `--study-name`: Name of the Optuna study. Default: `water_modelling`.
 - `--study_count`: Number of Optuna trials to run. Default: `1`.
@@ -80,6 +91,10 @@ conda activate water-modelling
 - `--data-directory`: Directory containing the raw data files. Default: `Organized_Data`.
 - `--storage-path`: Path to the database for storing Optuna study results. Default: `sqlite:///water_modelling.db`.
 
+**predict.py**
+- `--config-file`: Path to the training configuration JSON file output by the training script (e.g., `training_config_water_modelling.json`). Required.
+- `--data-directory` Directory containing new Excel files (will be scanned recursively). Default: `New_Data`.
+  
 ### Results & Outputs:
 1. **Models**:
    - Trained XGBoost models are saved in the `xgb_models/` directory as `.json` files.
@@ -93,6 +108,8 @@ conda activate water-modelling
 3. **Optuna Study**:
    - Study results (e.g., hyperparameters and trial metrics) are stored in the database specified by `--storage-path` (default: `water_modelling.db`).
 
+4. **Predictions on Sheets**
+   - Resulting models (selected by `--config-file` can be used to predict targets and output directly on sheets in the directory specified by `--data-directory`.
 
 ## Notes
 
@@ -214,3 +231,4 @@ This will open a live feed of the job's output.
 
 ### Important Note
 I put 20 hours in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
+
