@@ -207,6 +207,7 @@ Enter the directory containing the repository:
 
 ### Monitor the job
 `sq` to find the current running job ID
+Wait for the status to become R (running)
 `ls` to list all the files in the directory (you're looking for the .out file)
 `tail -f bg<node number>-<job number>.out`
 This will open a live feed of the job's output.
