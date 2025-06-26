@@ -78,11 +78,11 @@ def generate_csv_files(data_directory: str, sen_geometrical: bool = False,cloggi
 
                 if sen_geometrical:
                     SEN_Geometry = {
-                        "10": {"Angle":"-15°","Depth": "40 mm"},
-                        "09": {"Angle":"+15°","Depth": "40 mm"},
-                        "08": {"Angle":"0°","Depth": "20 mm"},
-                        "07": {"Angle":"-15°","Depth": "0 mm"},
-                        "06": {"Angle":"+15°","Depth": "0 mm"}
+                        "10": {"Angle":-15,"Depth": 40},
+                        "09": {"Angle":15,"Depth": 40},
+                        "08": {"Angle":0,"Depth": 20},
+                        "07": {"Angle":-15,"Depth": 0},
+                        "06": {"Angle":15,"Depth": 0}
                     }
                     Angle = SEN_Geometry[sheet_components[0][3:5]]["Angle"]
                     Depth = SEN_Geometry[sheet_components[0][3:5]]["Depth"]
@@ -95,7 +95,7 @@ def generate_csv_files(data_directory: str, sen_geometrical: bool = False,cloggi
 
                 for _, row in df.iterrows():
                     try:
-                        feature_dict = {{
+                        feature_dict = {
                             #'SEN': sheet_components[0],
                             #'waterflow': sheet_components[1],
                             #'airflow': sheet_components[2],
@@ -110,11 +110,11 @@ def generate_csv_files(data_directory: str, sen_geometrical: bool = False,cloggi
                             'ML_RR[mm]': row.iloc[20],
                             'L_wave_ht[mm]': row.iloc[21],
                             'R_wave_ht[mm]': row.iloc[22]
-                        }}
+                        }
 
                         if sen_geometrical:
-                            feature_dict['Angle'] = Angle,
-                            feature_dict['Depth'] = Depth,
+                            feature_dict['Angle'] = Angle
+                            feature_dict['Depth'] = Depth
                         else:
                             feature_dict['SEN'] = sheet_components[0]
 
@@ -143,8 +143,8 @@ def generate_csv_files(data_directory: str, sen_geometrical: bool = False,cloggi
     if feature_records and target_records:
         X_df = pd.DataFrame(feature_records)
         y_df = pd.DataFrame(target_records)
-        X_df.to_csv('X.csv', index=False)
-        y_df.to_csv('y.csv', index=False)
+        X_df.to_csv(f'{data_directory}/X.csv', index=False)
+        y_df.to_csv(f'{data_directory}/y.csv', index=False)
         logger.info("Successfully generated X.csv and y.csv from raw data.")
     else:
         logger.warning("No data was extracted. X.csv and y.csv were not created.")
@@ -158,18 +158,19 @@ def load_data(target: str = 'Count_EX1', onehot_encoding: bool = False, sen_geom
     Returns training and test DataFrames, feature names, and, if onehot_encoding is True,
     a dictionary with the unique values for each categorical feature.
     """
-    if not os.path.exists('X.csv') or not os.path.exists('y.csv'):
-        logger.info("X.csv or y.csv not found. Generating them from raw data.")
+
+    if not Path(f'{data_directory}/X.csv').exists() or not Path(f'{data_directory}/y.csv').exists():
+        logger.info("Generating X.csv and Y.csv")
         generate_csv_files(data_directory=data_directory, sen_geometrical=sen_geometrical,clogging_factors=clogging_factors)
 
-    if not os.path.exists('X.csv') or not os.path.exists('y.csv'):
+    if not Path(f'{data_directory}/X.csv').exists() or not Path(f'{data_directory}/y.csv').exists():
         logger.error("Failed to load data because X.csv or y.csv do not exist.")
         raise FileNotFoundError("X.csv or y.csv not found even after attempt to generate.")
 
     logger.info(f"Loading data for target: {target}")
 
-    X_data = pd.read_csv('X.csv', low_memory=False)
-    y_all = pd.read_csv('y.csv', low_memory=False)
+    X_data = pd.read_csv(f'{data_directory}/X.csv', low_memory=False)
+    y_all = pd.read_csv(f'{data_directory}/y.csv', low_memory=False)
 
     if target not in y_all.columns:
         logger.error(f"Target {target} not found in y.csv.")
