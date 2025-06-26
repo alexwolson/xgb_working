@@ -1,0 +1,25 @@
+python run_study.py --targets Count_EX1 Count_EX1 \
+--study_count 100 \
+--onehot-encoding \
+--discard-features "SEN,L_wave_ht[mm]" \
+--subsample-shap
+
+python run_study.py --targets Count_EX1 Count_EX2 \
+--study-name ignore_time_20250607 \
+--study_count 100 \
+--onehot-encoding \
+--discard-features "time[s],SEN,L_wave_ht[mm]" \
+--subsample-shap
+
+python predict.py --config-file training_config_clogging_factors_20250609.json \
+--data-directory New_Data
+
+python run_study.py --targets Count_EX1 Count_EX2 \
+--study-name NewFeaturesTest_20250625 \
+--study_count 100 \
+--onehot-encoding \
+--sen-geometrical True \
+--clogging-factors False \
+--discard-features "time[s],SEN,L_wave_ht[mm]" \
+--data-directory Organized_Data/SEN10 \
+--subsample-shap
