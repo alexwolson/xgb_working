@@ -599,8 +599,6 @@ def main():
                 multithread=args.multithread,
             )
 
-            best_trial = study.best_trial
-            best_params = best_trial.params
         else:
             if args.multithread:
                 storage = JournalStorage(
@@ -610,7 +608,8 @@ def main():
                 storage = args.storage_path
 
             study = optuna.load_study(study_name=full_study_name, storage=storage)
-
+            best_trial = study.best_trial
+            best_params = best_trial.params
             train_df, test_df, features, onehot_values = load_data(
                 target=target,
                 onehot_encoding=args.onehot_encoding,
