@@ -389,6 +389,7 @@ def main():
     parser.add_argument('--config-file', type=str, default=None,
                         help='Filename for saving the training configuration as JSON')
     parser.add_argument('--multithread', action='store_true', help='Use JournalStorage instead of SQLite, enabling multithreaded optimizing without MySQL and PostgreSQL.')
+    parser.add_argument('--evaluate-only', action='store_true', help='Only run evaluate_model and build the training config JSON. To be used after multithreaded training.')
 
     args = parser.parse_args()
 
@@ -406,26 +407,35 @@ def main():
         sen_geometrical_type = '_Geometrical' if args.sen_geometrical else ''
         clogging_factors_type = '_Clogging' if args.clogging_factors else ''
         full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
-        logger.info(f"Starting experiment for target: {target} - study: {full_study_name}")
+        
+        if not args.evaluate_only:
+            logger.info(f"Starting experiment for target: {target} - study: {full_study_name}")
+        
+            # load_data now returns onehot_values as an additional element
+            train_df, test_df, features, onehot_values = load_data(
+                target=target,
+                onehot_encoding=args.onehot_encoding,
+                sen_geometrical=args.sen_geometrical,
+                clogging_factors=args.clogging_factors,
+                discard_features=discard_features,
+                data_directory=args.data_directory
+            )
 
-        # load_data now returns onehot_values as an additional element
-        train_df, test_df, features, onehot_values = load_data(
-            target=target,
-            onehot_encoding=args.onehot_encoding,
-            sen_geometrical=args.sen_geometrical,
-            clogging_factors=args.clogging_factors,
-            discard_features=discard_features,
-            data_directory=args.data_directory
-        )
+            study = run_optuna_study(
+                train_df=train_df, test_df=test_df, features=features, target=target,
+                study_name=full_study_name, study_count=args.study_count, onehot_encoding=args.onehot_encoding,
+                tree_method=args.tree_method, storage_path=args.storage_path, multithread=args.multithread
+            )
 
-        study = run_optuna_study(
-            train_df=train_df, test_df=test_df, features=features, target=target,
-            study_name=full_study_name, study_count=args.study_count, onehot_encoding=args.onehot_encoding,
-            tree_method=args.tree_method, storage_path=args.storage_path, multithread=args.multithread
-        )
+            best_trial = study.best_trial
+            best_params = best_trial.params
+        else:
+            if args.multithread:
+                storage = optuna.storages.JournalStorage(optuna.storages.JournalFileBackend("optuna_journal_storage.log"))
+            else:
+                storage = args.storage_path
 
-        best_trial = study.best_trial
-        best_params = best_trial.params
+            study = optuna.load_study(study_name=full_study_name, storage=storage)
 
         evaluate_model(
             train_df=train_df, test_df=test_df, features=features, target=target,
