@@ -611,6 +611,15 @@ def main():
 
             study = optuna.load_study(study_name=full_study_name, storage=storage)
 
+            train_df, test_df, features, onehot_values = load_data(
+                target=target,
+                onehot_encoding=args.onehot_encoding,
+                sen_geometrical=args.sen_geometrical,
+                clogging_factors=args.clogging_factors,
+                discard_features=discard_features,
+                data_directory=args.data_directory,
+            )
+
             evaluate_model(
                 train_df=train_df,
                 test_df=test_df,
