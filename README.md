@@ -124,89 +124,6 @@ When rerunning experiments, existing models and Optuna studies are reused unless
 ### Setup
 Clone the repository on your local device.
 
-Add the following files:
-`study_job.sh`
-```bash#!/bin/bash
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem=32000M
-#SBATCH --time=1-0:0:0
-#SBATCH --output=%N-%j.out
-
-module load python/3.10
-virtualenv --no-download $SLURM_TMPDIR/env
-source $SLURM_TMPDIR/env/bin/activate
-pip install --no-index -r requirementscomputecan.txt
-
-python run_study.py --targets Count_EX1 Count_EX2 \
---study-name ComputeCan_20250625_test1 \
---study_count 100 \
---onehot-encoding \
---sen-geometrical \
---discard-features "time[s]" \
---data-directory data \
---subsample-shap 
-```
-
-`predict_job.sh`
-```bash#!/bin/bash
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem=32000M
-#SBATCH --time=0-10:0:0
-#SBATCH --output=%N-%j.out
-
-module load python/3.10
-virtualenv --no-download $SLURM_TMPDIR/env
-source $SLURM_TMPDIR/env/bin/activate
-pip install --no-index -r requirementscomputecan.txt
-
-python predict.py --config-file <TRAINING CONFIG FILE NAME> \
---data-directory data
-```
-
-`requirementscomputecan.txt`
-```
-alembic==1.14.0+computecanada
-cloudpickle==3.1.1+computecanada
-colorlog==6.9.0+computecanada
-contourpy==1.3.1+computecanada
-cycler==0.12.1+computecanada
-et_xmlfile==2.0.0+computecanada
-fonttools==4.56.0+computecanada
-greenlet==3.1.1+computecanada
-joblib==1.5.1+computecanada
-kiwisolver==1.4.8+computecanada
-llvmlite==0.44.0+computecanada
-mako==1.3.10+computecanada
-markdown_it_py==3.0.0+computecanada
-MarkupSafe==2.1.5+computecanada
-matplotlib==3.10.0+computecanada
-mdurl==0.1.2+computecanada
-numba==0.61.0+computecanada
-numpy==2.1.1+computecanada
-openpyxl==3.1.5+computecanada
-optuna==4.1.0+computecanada
-packaging==25.0+computecanada
-pandas==2.2.3+computecanada
-pillow==11.0.0+computecanada
-pygments==2.19.2+computecanada
-pyparsing==3.2.3+computecanada
-python_dateutil==2.9.0.post0+computecanada
-pytz==2025.2+computecanada
-PyYAML==6.0.2+computecanada
-rich==13.9.4+computecanada
-scikit_learn==1.5.2+computecanada
-scipy==1.14.1+computecanada
-seaborn==0.13.2+computecanada
-shap==0.46.0+computecanada
-six==1.17.0+computecanada
-slicer==0.0.8+computecanada
-SQLAlchemy==2.0.35+computecanada
-threadpoolctl==3.6.0+computecanada
-tqdm==4.67.1+computecanada
-```
-
 Prepare the dataset and add it to the folder under `/data/`
 Transfer the folder to the `/home/` directory on the chosen server using Globus
 
@@ -221,6 +138,7 @@ Enter the directory containing the repository:
 
 ### Submit the job
 `sbatch study_job.sh` or `sbatch predict_job.sh` (CHECK THE PARAMETERS BEFORE RUNNING)
+If `predict_job.sh` runs into issues, you can move the model, JSON file, and .db file (.log for multithreaded) to your own computer through Globus and run `start_predict.sh` locally instead.
 
 ### Monitor the job
 `sq` to find the current running job ID
@@ -232,3 +150,37 @@ This will open a live feed of the job's output.
 ### Checkpointing
 I put 1 day in `study_job.sh`, this might not be enough (training on all non-clogging data takes ~8 hours per target, 2 target variables). If a job runs out of time/is interrupted, restarting the script will try running another 100 trials. To end the trials early, change the `--study_count` to something lower, as interrupting it will prevent it from creating the `training_config` that allows you to predict using the model.
 If you find that training two variables in one job is unfeasible, train them one at a time.
+
+### Multithreading (not tested thoroughly)
+Unfortunately, because Cedar and Graham are down for maintenance, proper multithreading is poorly implemented and might crash. This is because MySQL and PostgreSQL are only available on those clusters, and they support multi-thread write operations much better than SQLite. I got it briefly running with 2 cores. 
+
+This led me to use a workaround: JournalStorage. This is selected through the `--multithread` parameter. Hopefully this is more stable. Additionally, run_study.py must be run again with the SAME parameters and `--evaluate-only` to evaluate the model and build the training_config JSON file. `multithread_study_eval.sh` is setup to do this. 
+
+`multithread_study_train.sh`
+```
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --mem-per-=cpu=3G
+#SBATCH --ntasks=10
+#SBATCH --time=1-0:0:0
+#SBATCH --output=%N-%j.out
+
+module load python/3.10
+
+virtualenv --no-download $SLURM_TMPDIR/env
+source $SLURM_TMPDIR/env/bin/activate
+
+pip install --no-index --upgrade pip
+pip install --no-index -r requirementscomputecan.txt
+
+srun python run_study.py --targets Count_EX1 Count_EX2 \
+--study-name ComputeCan_20250625_test1 \
+--study_count 10 \
+--onehot-encoding \
+--sen-geometrical \
+--discard-features "time[s]" \
+--data-directory data \
+--subsample-shap \
+--multithread \
+--tree-method hist
+```
