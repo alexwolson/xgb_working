@@ -164,3 +164,5 @@ sbatch: error: instead of expected UNIX line breaks (\n).
 
 Run this:
 `dos2unix foo.txt      # Replace foo.txt with the name of your file`
+
+Note: I originally wrote the batch script to use a full day for training. However, it for sure takes less time. Change it to a few hours and test it. This will increase the job's priority in the queue.
