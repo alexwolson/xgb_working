@@ -603,8 +603,8 @@ def main():
             best_params = best_trial.params
         else:
             if args.multithread:
-                storage = optuna.storages.JournalStorage(
-                    optuna.storages.JournalFileBackend("optuna_journal_storage.log")
+                storage = JournalStorage(
+                    JournalFileBackend("optuna_journal_storage.log")
                 )
             else:
                 storage = args.storage_path
