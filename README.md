@@ -43,6 +43,13 @@ git clone https://github.com/alexwolson/steel_flow_sensor_prediction.git
 
 To set up the environment, you can either:
 
+**Reccomended: Use uv**
+```bash
+uv sync
+```
+
+Make sure to start any future commands with `uv run`.
+
 **Option 1: Use `requirements.txt` with pip**
 ```bash
 python -m venv .venv
