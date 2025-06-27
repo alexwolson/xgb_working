@@ -351,9 +351,7 @@ def run_optuna_study(
         return mae
 
     if multithread:
-        storage = optuna.storages.JournalStorage(
-            optuna.storages.JournalFileBackend("optuna_journal_storage.log")
-        )
+        storage = JournalStorage(JournalFileBackend("optuna_journal_storage.log"))
     else:
         storage = storage_path
 
@@ -650,12 +648,12 @@ def main():
 
             training_configs.append(config)
 
-        # Save the accumulated training configuration to a JSON file
-        with open(args.config_file, "w") as f:
-            json.dump(training_configs, f, indent=4)
-        logger.info(f"Training configuration saved to {args.config_file}")
+            # Save the accumulated training configuration to a JSON file
+            with open(args.config_file, "w") as f:
+                json.dump(training_configs, f, indent=4)
+            logger.info(f"Training configuration saved to {args.config_file}")
 
-        logger.info("All experiments completed successfully.")
+            logger.info("All experiments completed successfully.")
 
 
 if __name__ == "__main__":
