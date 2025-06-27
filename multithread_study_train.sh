@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --mem-per-=cpu=3G
+#SBATCH --mem-per-cpu=3G
 #SBATCH --ntasks=10
 #SBATCH --time=1-0:0:0
 #SBATCH --output=%N-%j.out
