@@ -266,7 +266,8 @@ def run_optuna_study(train_df: pd.DataFrame, test_df: pd.DataFrame, features: Li
         mae = mean_absolute_error(test_df[target], preds)
         return mae
 
-    study = optuna.create_study(direction='minimize', study_name=study_name, storage=storage_path, load_if_exists=True)
+    storage = optuna.storages.RDBStorage(url=storage_path, engine_kwargs={"connect_args": {"timeout":100}})
+    study = optuna.create_study(direction='minimize', study_name=study_name, storage=storage, load_if_exists=True)
 
     logger.info("Optimizing hyperparameters with Optuna.")
 
