@@ -201,11 +201,20 @@ def load_data(
     a dictionary with the unique values for each categorical feature.
     """
 
+    encoding_type = "OneHot" if onehot_encoding else "Categorical"
+    sen_geometrical_type = "_Geometrical" if sen_geometrical else ""
+    clogging_factors_type = "_Clogging" if clogging_factors else ""
+    preprocess_details = (
+        f"_{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
+    )
+
     if (
-        not Path(f"{data_directory}/X.csv").exists()
-        or not Path(f"{data_directory}/y.csv").exists()
+        not Path(f"{data_directory}/X{preprocess_details}.csv").exists()
+        or not Path(f"{data_directory}/y{preprocess_details}.csv").exists()
     ):
-        logger.info("Generating X.csv and Y.csv")
+        logger.info(
+            f"Generating X{preprocess_details}.csv and y{preprocess_details}.csv"
+        )
         generate_csv_files(
             data_directory=data_directory,
             sen_geometrical=sen_geometrical,
@@ -213,18 +222,22 @@ def load_data(
         )
 
     if (
-        not Path(f"{data_directory}/X.csv").exists()
-        or not Path(f"{data_directory}/y.csv").exists()
+        not Path(f"{data_directory}/X{preprocess_details}.csv").exists()
+        or not Path(f"{data_directory}/y{preprocess_details}.csv").exists()
     ):
-        logger.error("Failed to load data because X.csv or y.csv do not exist.")
+        logger.error(
+            f"Failed to load data because X{preprocess_details}.csv or y{preprocess_details}.csv do not exist."
+        )
         raise FileNotFoundError(
-            "X.csv or y.csv not found even after attempt to generate."
+            f"X{preprocess_details}.csv or y{preprocess_details}.csv not found even after attempt to generate."
         )
 
     logger.info(f"Loading data for target: {target}")
 
-    X_data = pd.read_csv(f"{data_directory}/X.csv", low_memory=False)
-    y_all = pd.read_csv(f"{data_directory}/y.csv", low_memory=False)
+    X_data = pd.read_csv(
+        f"{data_directory}/X{preprocess_details}.csv", low_memory=False
+    )
+    y_all = pd.read_csv(f"{data_directory}/y{preprocess_details}.csv", low_memory=False)
 
     if target not in y_all.columns:
         logger.error(f"Target {target} not found in y.csv.")
