@@ -185,7 +185,6 @@ def predict_on_sheet(
 
         # Make prediction (assume single-row input)
         try:
-            print(features_df.to_string())
             pred = model.predict(features_df)[0]
         except Exception as e:
             logger.error(f"Prediction error in row {idx} of sheet '{sheet_name}': {e}")
