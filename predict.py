@@ -44,6 +44,8 @@ def predict_on_sheet(
     sen_geometrical: bool,
     clogging_factors: bool,
     drop_cols: list,
+    feature_lag: int,
+    lagged_features: list,
     onehot_values: dict = None,
 ) -> pd.DataFrame:
     """
@@ -84,6 +86,18 @@ def predict_on_sheet(
         "L_wave_ht[mm]",
         "R_wave_ht[mm]",
     ]
+
+    # lag features
+    if not feature_lag == 0:
+        cleaned_lagged_features = [clean_column_name(col) for col in lagged_features]
+
+    if cleaned_lagged_features:
+        logger.info(f"Lagging features: {cleaned_lagged_features}")
+        for feature in cleaned_lagged_features:
+            for lag_amount in range(1, feature_lag):
+                df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
+                expected_cols.append(f"{feature}_lag{lag_amount}")
+                logger.info(f"Column created: {feature}_lag{lag_amount}")
 
     # Compute the mapping from expected column names to actual DataFrame column names once per sheet
     actual_cols = {}
@@ -204,6 +218,8 @@ def process_excel_file(
     sen_geometrical: bool,
     clogging_factors: bool,
     drop_cols: list,
+    feature_lag: int,
+    lagged_features: list,
     onehot_values: dict = None,
     progress: "Progress" = None,
     progress_task: TaskID = None,
@@ -234,6 +250,8 @@ def process_excel_file(
             sen_geometrical,
             clogging_factors,
             drop_cols,
+            feature_lag,
+            lagged_features,
             onehot_values,
         )
         updated_sheets[sheet_name] = updated_df
@@ -300,6 +318,8 @@ def main():
         clogging_factors = config.get("clogging_factors", False)
         drop_cols = config.get("discard_features", [])
         onehot_values = config.get("onehot_values", {}) if onehot_encoding else {}
+        feature_lag = config.get("feature_lag")
+        lagged_features = config.get("lagged_features")
 
         logger.info(f"Loading model from {model_file} for configuration: {model_name}")
         model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
@@ -340,6 +360,8 @@ def main():
                     sen_geometrical,
                     clogging_factors,
                     drop_cols,
+                    feature_lag,
+                    lagged_features,
                     onehot_values,
                     progress,
                     progress_task,

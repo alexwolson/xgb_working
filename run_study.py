@@ -194,6 +194,8 @@ def load_data(
     clogging_factors: bool = False,
     discard_features: Optional[List[str]] = None,
     data_directory: str = "Organized_Data",
+    feature_lag: int = 0,
+    lagged_features: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess the dataset for a given target variable.
@@ -299,11 +301,24 @@ def load_data(
         logger.info(f"Discarding features: {cleaned_discard_features}")
         X_data.drop(columns=cleaned_discard_features, errors="ignore", inplace=True)
 
+    # lag features
+    if not feature_lag == 0:
+        cleaned_lagged_features = [clean_column_name(col) for col in lagged_features]
+
+    if cleaned_lagged_features:
+        logger.info(f"Lagging features: {cleaned_lagged_features}")
+        for feature in cleaned_lagged_features:
+            for lag_amount in range(1, feature_lag):
+                X_data[f"{feature}_lag{lag_amount}"] = X_data[feature].shift(lag_amount)
+                logger.info(f"Column created: {feature}_lag{lag_amount}")
+
     features = X_data.columns.tolist()
 
     logger.info("Combining features and target.")
     combined_df = pd.concat([X_data, y_data], axis=1)
     combined_df.dropna(inplace=True)
+
+    logger.info(combined_df.head(5))
 
     if combined_df.empty:
         logger.error("No data available after merging and dropping NAs.")
@@ -561,7 +576,7 @@ def main():
         help="Only run evaluate_model and build the training config JSON. To be used after multithreaded training.",
     )
     parser.add_argument(
-        "--features-to-lag",
+        "--lagged-features",
         type=str,
         default="",
         help="Comma separated list of input features to lag.",
@@ -582,6 +597,12 @@ def main():
     discard_features = (
         [feat.strip() for feat in args.discard_features.split(",")]
         if args.discard_features
+        else []
+    )
+
+    lagged_features = (
+        [feat.strip() for feat in args.lagged_features.split(",")]
+        if args.lagged_features
         else []
     )
 
@@ -609,6 +630,7 @@ def main():
                 discard_features=discard_features,
                 data_directory=args.data_directory,
                 feature_lag=args.feature_lag_amount,
+                lagged_features=lagged_features,
             )
 
             study = run_optuna_study(
@@ -643,6 +665,7 @@ def main():
                 discard_features=discard_features,
                 data_directory=args.data_directory,
                 feature_lag=args.feature_lag_amount,
+                lagged_features=lagged_features,
             )
 
             evaluate_model(
@@ -671,7 +694,7 @@ def main():
                 "multithread": args.multithread,
                 "study_count": args.study_count,
                 "feature_lag": args.feature_lag_amount,
-                "lagged_features": args.
+                "lagged_features": lagged_features,
             }
             if args.onehot_encoding:
                 config["onehot_values"] = onehot_values
