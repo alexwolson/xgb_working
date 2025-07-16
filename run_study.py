@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_csv_files(
-    data_directory: str, sen_geometrical: bool = False, clogging_factors: bool = False
+    data_directory: str, preprocess_details:str, sen_geometrical: bool = False, clogging_factors: bool = False
 ) -> None:
     """
     Generate X.csv and y.csv from Excel files in the given data_directory.
@@ -51,7 +51,7 @@ def generate_csv_files(
         logger.error(f"Data directory '{data_directory}' does not exist.")
         return
 
-    logger.info("Generating X.csv and y.csv from raw data.")
+    logger.info(f"Generating X{preprocess_details}.csv and y{preprocess_details}.csv from raw data.")
 
     # Collect all Excel files
     excel_files = [
@@ -180,11 +180,11 @@ def generate_csv_files(
     if feature_records and target_records:
         X_df = pd.DataFrame(feature_records)
         y_df = pd.DataFrame(target_records)
-        X_df.to_csv(f"{data_directory}/X.csv", index=False)
-        y_df.to_csv(f"{data_directory}/y.csv", index=False)
-        logger.info("Successfully generated X.csv and y.csv from raw data.")
+        X_df.to_csv(f"{data_directory}/X{preprocess_details}.csv", index=False)
+        y_df.to_csv(f"{data_directory}/y{preprocess_details}.csv", index=False)
+        logger.info(f"Successfully generated X{preprocess_details}.csv and y{preprocess_details}.csv from raw data.")
     else:
-        logger.warning("No data was extracted. X.csv and y.csv were not created.")
+        logger.warning(f"No data was extracted. X{preprocess_details}.csv and y{preprocess_details}.csv were not created.")
 
 
 def load_data(
@@ -207,7 +207,7 @@ def load_data(
     sen_geometrical_type = "_Geometrical" if sen_geometrical else ""
     clogging_factors_type = "_Clogging" if clogging_factors else ""
     preprocess_details = (
-        f"_{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
+        f"{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
     )
 
     if (
@@ -221,6 +221,7 @@ def load_data(
             data_directory=data_directory,
             sen_geometrical=sen_geometrical,
             clogging_factors=clogging_factors,
+            preprocess_details=preprocess_details
         )
 
     if (
@@ -308,9 +309,9 @@ def load_data(
     if cleaned_lagged_features:
         logger.info(f"Lagging features: {cleaned_lagged_features}")
         for feature in cleaned_lagged_features:
-            for lag_amount in range(1, feature_lag):
+            for lag_amount in range(1, feature_lag+1):
                 X_data[f"{feature}_lag{lag_amount}"] = X_data[feature].shift(lag_amount)
-                logger.info(f"Column created: {feature}_lag{lag_amount}")
+                #logger.info(f"Column created: {feature}_lag{lag_amount}")
 
     features = X_data.columns.tolist()
 
@@ -318,7 +319,7 @@ def load_data(
     combined_df = pd.concat([X_data, y_data], axis=1)
     combined_df.dropna(inplace=True)
 
-    logger.info(combined_df.head(5))
+    #logger.info(combined_df.head(5))
 
     if combined_df.empty:
         logger.error("No data available after merging and dropping NAs.")

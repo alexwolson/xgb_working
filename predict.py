@@ -94,10 +94,10 @@ def predict_on_sheet(
     if cleaned_lagged_features:
         logger.info(f"Lagging features: {cleaned_lagged_features}")
         for feature in cleaned_lagged_features:
-            for lag_amount in range(1, feature_lag):
+            for lag_amount in range(1, feature_lag+1):
                 df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
                 expected_cols.append(f"{feature}_lag{lag_amount}")
-                logger.info(f"Column created: {feature}_lag{lag_amount}")
+                #logger.info(f"Column created: {feature}_lag{lag_amount}")
 
     # Compute the mapping from expected column names to actual DataFrame column names once per sheet
     actual_cols = {}
@@ -199,6 +199,7 @@ def predict_on_sheet(
 
         # Make prediction (assume single-row input)
         try:
+            #print(features_df.to_string())
             pred = model.predict(features_df)[0]
         except Exception as e:
             logger.error(f"Prediction error in row {idx} of sheet '{sheet_name}': {e}")
