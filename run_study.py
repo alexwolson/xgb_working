@@ -560,6 +560,18 @@ def main():
         action="store_true",
         help="Only run evaluate_model and build the training config JSON. To be used after multithreaded training.",
     )
+    parser.add_argument(
+        "--features-to-lag",
+        type=str,
+        default="",
+        help="Comma separated list of input features to lag.",
+    )
+    parser.add_argument(
+        "--feature-lag-amount",
+        type=int,
+        default=0,
+        help="Positive inter amount of lag for input features.",
+    )
 
     args = parser.parse_args()
 
@@ -580,7 +592,8 @@ def main():
         encoding_type = "OneHot" if args.onehot_encoding else "Categorical"
         sen_geometrical_type = "_Geometrical" if args.sen_geometrical else ""
         clogging_factors_type = "_Clogging" if args.clogging_factors else ""
-        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
+        feature_lag = args.feature_lag_amount
+        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}_{feature_lag}Lag"
 
         if not args.evaluate_only:
             logger.info(
@@ -595,6 +608,7 @@ def main():
                 clogging_factors=args.clogging_factors,
                 discard_features=discard_features,
                 data_directory=args.data_directory,
+                feature_lag=args.feature_lag_amount,
             )
 
             study = run_optuna_study(
@@ -628,6 +642,7 @@ def main():
                 clogging_factors=args.clogging_factors,
                 discard_features=discard_features,
                 data_directory=args.data_directory,
+                feature_lag=args.feature_lag_amount,
             )
 
             evaluate_model(
@@ -655,6 +670,8 @@ def main():
                 "storage_path": args.storage_path,
                 "multithread": args.multithread,
                 "study_count": args.study_count,
+                "feature_lag": args.feature_lag_amount,
+                "lagged_features": args.
             }
             if args.onehot_encoding:
                 config["onehot_values"] = onehot_values
