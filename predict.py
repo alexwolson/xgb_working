@@ -88,6 +88,7 @@ def predict_on_sheet(
     ]
 
     # lag features
+    cleaned_lagged_features = []
     if not feature_lag == 0:
         cleaned_lagged_features = [clean_column_name(col) for col in lagged_features]
 

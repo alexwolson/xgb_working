@@ -303,6 +303,7 @@ def load_data(
         X_data.drop(columns=cleaned_discard_features, errors="ignore", inplace=True)
 
     # lag features
+    cleaned_lagged_features = []
     if not feature_lag == 0:
         cleaned_lagged_features = [clean_column_name(col) for col in lagged_features]
 
