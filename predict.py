@@ -87,6 +87,8 @@ def predict_on_sheet(
         "R_wave_ht[mm]",
     ]
 
+    nice_df = df
+
     # lag features
     if not feature_lag == 0:
         logger.info(f"Lagging features: {lagged_features}")
@@ -95,6 +97,9 @@ def predict_on_sheet(
                 df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
                 expected_cols.append(f"{feature}_lag{lag_amount}")
                 #logger.info(f"Column created: {feature}_lag{lag_amount}")
+        
+        # drop rows with na values due to lag
+        df = df.iloc[feature_lag:]
 
     # Compute the mapping from expected column names to actual DataFrame column names once per sheet
     actual_cols = {}
@@ -208,8 +213,8 @@ def predict_on_sheet(
         predictions.append(pred)
 
     # Add the predictions as a new column to the DataFrame
-    df[model_name] = predictions
-    return df
+    nice_df[model_name] = predictions
+    return nice_df
 
 
 def process_excel_file(
