@@ -381,7 +381,7 @@ def run_optuna_study(
         return mae
 
     if multithread:
-        storage = JournalStorage(JournalFileBackend("optuna_journal_storage.log"))
+        storage = JournalStorage(JournalFileBackend(f"optuna_{study_name}.log"))
     else:
         storage = storage_path
 
@@ -587,7 +587,7 @@ def main():
         "--feature-lag-amount",
         type=int,
         default=0,
-        help="Positive inter amount of lag for input features.",
+        help="Positive int amount of lag for input features.",
     )
 
     args = parser.parse_args()
@@ -651,7 +651,7 @@ def main():
         else:
             if args.multithread:
                 storage = JournalStorage(
-                    JournalFileBackend("optuna_journal_storage.log")
+                    JournalFileBackend(f"optuna_{full_study_name}.log")
                 )
             else:
                 storage = args.storage_path

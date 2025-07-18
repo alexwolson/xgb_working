@@ -1,10 +1,11 @@
-python run_study.py --targets Count_EX1 \
---study-name lagtest \
---study_count 3 \
+python run_study.py --targets Count_EX1 Count_EX2 \
+--study-name lagged_5_MLAN_20250717 \
+--study_count 100 \
 --onehot-encoding \
 --sen-geometrical \
 --discard-features "time[s]" \
---data-directory Data \
+--data-directory data \
 --subsample-shap \
---feature-lag-amount 3 \
---lagged-features "AN_1_LL[m/s],AN_2_LQ[m/s],AN_3_RQ[m/s],AN_4_RR[m/s]"
+--tree-method gpu_hist \
+--lagged-features "AN_1_LL[m/s],AN_2_LQ[m/s],AN_3_RQ[m/s],AN_4_RR[m/s],ML_LL[mm],ML_LQ[mm],ML_RQ[mm],ML_RR[mm]" \
+--feature-lag-amount 5 

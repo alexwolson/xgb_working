@@ -88,13 +88,9 @@ def predict_on_sheet(
     ]
 
     # lag features
-    cleaned_lagged_features = []
     if not feature_lag == 0:
-        cleaned_lagged_features = [clean_column_name(col) for col in lagged_features]
-
-    if cleaned_lagged_features:
-        logger.info(f"Lagging features: {cleaned_lagged_features}")
-        for feature in cleaned_lagged_features:
+        logger.info(f"Lagging features: {lagged_features}")
+        for feature in lagged_features:
             for lag_amount in range(1, feature_lag+1):
                 df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
                 expected_cols.append(f"{feature}_lag{lag_amount}")
@@ -197,6 +193,10 @@ def predict_on_sheet(
             for column in list(features_df.columns):
                 if clean_column_name(col_to_drop) == column:
                     features_df.drop(columns=[column], inplace=True)
+
+        # Fix column order
+        correct_cols = model.get_booster().feature_names
+        features_df = features_df[correct_cols]
 
         # Make prediction (assume single-row input)
         try:
