@@ -24,6 +24,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.model_selection import train_test_split
 
 # Set up rich console for user-facing messages
@@ -414,7 +415,7 @@ def evaluate_model(
     best_params: Dict[str, float],
     onehot_encoding: bool = False,
     subsample_shap: Optional[bool] = False,
-) -> None:
+) -> Tuple[float, float]:
     """
     Evaluate the model using the best parameters found by the Optuna study.
     Generate predictions, compute errors, and create plots (error histogram, SHAP plots).
@@ -450,6 +451,9 @@ def evaluate_model(
     mean_error = errors.mean()
     logger.info(f"Mean Absolute Error on test set: {mean_error:.4f}")
 
+    mape = mean_absolute_percentage_error(y_test, predictions)*100
+    logger.info(f"Mean Absolute Percent Error on test set: {mean_error:.4f}%")
+
     logger.info("Generating error histogram.")
     sns.histplot(errors, bins=50, kde=True, stat="density")
     plt.title(f"Histogram of Errors for {study_name}")
@@ -483,6 +487,8 @@ def evaluate_model(
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"figures/shap_bar_{study_name}.pdf")
     plt.close()
+
+    return mean_error, mape
 
 
 def main():
@@ -670,7 +676,7 @@ def main():
                 lagged_features=lagged_features,
             )
 
-            evaluate_model(
+            mae, mape = evaluate_model(
                 train_df=train_df,
                 test_df=test_df,
                 features=features,
@@ -697,6 +703,8 @@ def main():
                 "study_count": args.study_count,
                 "feature_lag": args.feature_lag_amount,
                 "lagged_features": lagged_features,
+                "mean_absolute_error": mae,
+                "mean_absolute_percent_error": mape,
             }
             if args.onehot_encoding:
                 config["onehot_values"] = onehot_values
