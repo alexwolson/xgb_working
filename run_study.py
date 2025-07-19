@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_csv_files(
-    data_directory: str, preprocess_details:str, sen_geometrical: bool = False, clogging_factors: bool = False
+    data_directory: str, preprocess_details:str, sen_geometrical: bool = False, clogging_factors: bool = False, mould_position: bool = False
 ) -> None:
     """
     Generate X.csv and y.csv from Excel files in the given data_directory.
@@ -110,6 +110,13 @@ def generate_csv_files(
                     )
                     continue
 
+                sheet_is_clogged = False
+                if clogging_factors:
+                    if len(sheet_components) == 4:
+                        sheet_is_clogged = False
+                    elif len(sheet_components) == 5:
+                        sheet_is_clogged = True
+
                 if sen_geometrical:
                     SEN_Geometry = {
                         "10": {"Angle": -15, "Depth": 40},
@@ -122,10 +129,10 @@ def generate_csv_files(
                     Depth = SEN_Geometry[sheet_components[0][3:5]]["Depth"]
 
                 if clogging_factors:
-                    if len(sheet_components) == 4:
-                        CF = "0"
-                    elif len(sheet_components) == 5:
+                    if sheet_is_clogged:
                         CF = sheet_components[1]
+                    else:
+                        CF = "0"
 
                 for _, row in df.iterrows():
                     try:
@@ -152,13 +159,18 @@ def generate_csv_files(
                         else:
                             feature_dict["SEN"] = sheet_components[0]
 
-                        if clogging_factors:
+
+                        if clogging_factors and sheet_is_clogged:
                             feature_dict["CF"] = CF
                             feature_dict["waterflow"] = sheet_components[2]
                             feature_dict["airflow"] = sheet_components[3]
+                            if mould_position:
+                                feature_dict["mould_pos"] = sheet_components[4]
                         else:
                             feature_dict["waterflow"] = sheet_components[1]
                             feature_dict["airflow"] = sheet_components[2]
+                            if mould_position:
+                                feature_dict["mould_pos"] = sheet_components[3]
 
                         feature_records.append(feature_dict)
 
@@ -197,6 +209,7 @@ def load_data(
     data_directory: str = "Organized_Data",
     feature_lag: int = 0,
     lagged_features: Optional[List[str]] = None,
+    mould_position: bool = False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess the dataset for a given target variable.
@@ -207,8 +220,9 @@ def load_data(
     encoding_type = "OneHot" if onehot_encoding else "Categorical"
     sen_geometrical_type = "_Geometrical" if sen_geometrical else ""
     clogging_factors_type = "_Clogging" if clogging_factors else ""
+    mould_position_type = "_Mould" if mould_position else "" 
     preprocess_details = (
-        f"{encoding_type}{sen_geometrical_type}{clogging_factors_type}"
+        f"{encoding_type}{sen_geometrical_type}{clogging_factors_type}{mould_position_type}"
     )
 
     if (
@@ -222,6 +236,7 @@ def load_data(
             data_directory=data_directory,
             sen_geometrical=sen_geometrical,
             clogging_factors=clogging_factors,
+            mould_position=mould_position,
             preprocess_details=preprocess_details
         )
 
@@ -252,7 +267,7 @@ def load_data(
     logger.info("Formatting data types.")
 
     # Columns to be treated as categorical
-    categorical_columns = ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF"]
+    categorical_columns = ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF", "mould_pos"]
 
     for cat_col in categorical_columns:
         if cat_col in X_data.columns:
@@ -472,7 +487,7 @@ def evaluate_model(
 
     logger.info("Generating SHAP beeswarm plot.")
     plt.figure()
-    shap.plots.beeswarm(shap_values, show=False, max_display=30)
+    shap.plots.beeswarm(shap_values, show=False, max_display=100)
     plt.title(f"SHAP Beeswarm Plot for {study_name}")
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
@@ -481,7 +496,7 @@ def evaluate_model(
 
     logger.info("Generating SHAP bar plot.")
     plt.figure()
-    shap.plots.bar(shap_values, show=False, max_display=30)
+    shap.plots.bar(shap_values, show=False, max_display=100)
     plt.title(f"SHAP Bar Plot for {study_name}")
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
@@ -595,6 +610,11 @@ def main():
         default=0,
         help="Positive int amount of lag for input features.",
     )
+    parser.add_argument(
+        "--mould-position",
+        action="store_true",
+        help="Use mould position (0-1,1-2,2-3,3-4) as a feature.",
+    )
 
     args = parser.parse_args()
 
@@ -622,7 +642,8 @@ def main():
         sen_geometrical_type = "_Geometrical" if args.sen_geometrical else ""
         clogging_factors_type = "_Clogging" if args.clogging_factors else ""
         feature_lag = args.feature_lag_amount
-        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}_{feature_lag}Lag"
+        mould_position = "_Mould" if args.mould_position else "" 
+        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}_{feature_lag}Lag{mould_position}"
 
         if not args.evaluate_only:
             logger.info(
@@ -639,6 +660,7 @@ def main():
                 data_directory=args.data_directory,
                 feature_lag=args.feature_lag_amount,
                 lagged_features=lagged_features,
+                mould_position=args.mould_position,
             )
 
             study = run_optuna_study(
@@ -674,6 +696,7 @@ def main():
                 data_directory=args.data_directory,
                 feature_lag=args.feature_lag_amount,
                 lagged_features=lagged_features,
+                mould_position=args.mould_position,
             )
 
             mae, mape = evaluate_model(
@@ -705,6 +728,7 @@ def main():
                 "lagged_features": lagged_features,
                 "mean_absolute_error": mae,
                 "mean_absolute_percent_error": mape,
+                "mould_position": args.mould_position,
             }
             if args.onehot_encoding:
                 config["onehot_values"] = onehot_values

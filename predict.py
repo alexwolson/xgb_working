@@ -47,6 +47,7 @@ def predict_on_sheet(
     feature_lag: int,
     lagged_features: list,
     onehot_values: dict = None,
+    mould_position: bool = False,
 ) -> pd.DataFrame:
     """
     Process one sheet: for each row, extract features (using a mapping computed once per sheet)
@@ -87,19 +88,16 @@ def predict_on_sheet(
         "R_wave_ht[mm]",
     ]
 
-    nice_df = df
+    nice_df = df.copy()
 
     # lag features
     if not feature_lag == 0:
-        logger.info(f"Lagging features: {lagged_features}")
+        #logger.info(f"Lagging features: {lagged_features}")
         for feature in lagged_features:
             for lag_amount in range(1, feature_lag+1):
                 df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
                 expected_cols.append(f"{feature}_lag{lag_amount}")
                 #logger.info(f"Column created: {feature}_lag{lag_amount}")
-        
-        # drop rows with na values due to lag
-        df = df.iloc[feature_lag:]
 
     # Compute the mapping from expected column names to actual DataFrame column names once per sheet
     actual_cols = {}
@@ -112,6 +110,13 @@ def predict_on_sheet(
             logger.warning(f"Available columns: {df.columns.tolist()}")
             return df
         actual_cols[col] = matches[0]
+
+    sheet_is_clogged = False
+    if clogging_factors:
+        if len(sheet_components) == 4:
+            sheet_is_clogged = False
+        elif len(sheet_components) == 5:
+            sheet_is_clogged = True
 
     predictions = []
     # Process each row using the precomputed column mapping
@@ -129,10 +134,10 @@ def predict_on_sheet(
                 Depth = SEN_Geometry[sheet_components[0][3:5]]["Depth"]
 
             if clogging_factors:
-                if len(sheet_components) == 4:
-                    CF = "0"
-                elif len(sheet_components) == 5:
+                if sheet_is_clogged:
                     CF = sheet_components[1]
+                else:
+                    CF = "0"
 
             # Build features dictionary using fixed features and values from the mapped columns
             features_dict = {}
@@ -143,13 +148,17 @@ def predict_on_sheet(
             else:
                 features_dict["SEN"] = sheet_components[0]
 
-            if clogging_factors:
+            if clogging_factors and sheet_is_clogged:
                 features_dict["CF"] = CF
                 features_dict["waterflow"] = sheet_components[2]
                 features_dict["airflow"] = sheet_components[3]
+                if mould_position:
+                    features_dict["mould_pos"] = sheet_components[4]
             else:
                 features_dict["waterflow"] = sheet_components[1]
                 features_dict["airflow"] = sheet_components[2]
+                if mould_position:
+                    features_dict["mould_pos"] = sheet_components[3]
 
             for col in expected_cols:
                 features_dict[col] = row[actual_cols[col]]
@@ -183,7 +192,7 @@ def predict_on_sheet(
 
         # Apply one-hot encoding if enabled using training metadata
         if onehot_encoding and onehot_values is not None:
-            for cat_feature in ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF"]:
+            for cat_feature in ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF", "mould_pos"]:
                 if cat_feature in features_df.columns:
                     cat_val = features_df.at[0, cat_feature]
                     for possible_val in onehot_values.get(cat_feature, []):
@@ -228,6 +237,7 @@ def process_excel_file(
     feature_lag: int,
     lagged_features: list,
     onehot_values: dict = None,
+    mould_position: bool = False,
     progress: "Progress" = None,
     progress_task: TaskID = None,
 ) -> None:
@@ -260,6 +270,7 @@ def process_excel_file(
             feature_lag,
             lagged_features,
             onehot_values,
+            mould_position,
         )
         updated_sheets[sheet_name] = updated_df
         # Update the global progress bar after processing each sheet
@@ -327,6 +338,7 @@ def main():
         onehot_values = config.get("onehot_values", {}) if onehot_encoding else {}
         feature_lag = config.get("feature_lag")
         lagged_features = config.get("lagged_features")
+        mould_position = config.get("mould_position")
 
         logger.info(f"Loading model from {model_file} for configuration: {model_name}")
         model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
@@ -370,6 +382,7 @@ def main():
                     feature_lag,
                     lagged_features,
                     onehot_values,
+                    mould_position,
                     progress,
                     progress_task,
                 )

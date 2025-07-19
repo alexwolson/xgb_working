@@ -1,5 +1,5 @@
-python run_study.py --targets Count_EX1 Count_EX2 \
---study-name lagged_5_MLAN_20250717 \
+uv run run_study.py --targets Count_EX1 Count_EX2 \
+--study-name test20250718e \
 --study_count 100 \
 --onehot-encoding \
 --sen-geometrical \
@@ -8,4 +8,5 @@ python run_study.py --targets Count_EX1 Count_EX2 \
 --subsample-shap \
 --tree-method gpu_hist \
 --lagged-features "AN_1_LL[m/s],AN_2_LQ[m/s],AN_3_RQ[m/s],AN_4_RR[m/s],ML_LL[mm],ML_LQ[mm],ML_RQ[mm],ML_RR[mm]" \
---feature-lag-amount 5 
+--feature-lag-amount 5 \
+--mould-position \
