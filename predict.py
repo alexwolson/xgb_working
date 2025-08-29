@@ -159,6 +159,8 @@ def predict_on_sheet(
                 features_dict["airflow"] = sheet_components[2]
                 if mould_position:
                     features_dict["mould_pos"] = sheet_components[3]
+                if clogging_factors:
+                    features_dict["CF"] = CF
 
             for col in expected_cols:
                 features_dict[col] = row[actual_cols[col]]

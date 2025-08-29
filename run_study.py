@@ -23,8 +23,15 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from sklearn.metrics import mean_absolute_error
-from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+    mean_squared_error,
+    root_mean_squared_error,
+    root_mean_squared_log_error,
+    PredictionErrorDisplay,
+)
 from sklearn.model_selection import train_test_split
 
 # Set up rich console for user-facing messages
@@ -171,6 +178,8 @@ def generate_csv_files(
                             feature_dict["airflow"] = sheet_components[2]
                             if mould_position:
                                 feature_dict["mould_pos"] = sheet_components[3]
+                            if clogging_factors:
+                                feature_dict["CF"] = CF
 
                         feature_records.append(feature_dict)
 
@@ -328,6 +337,7 @@ def load_data(
         for feature in cleaned_lagged_features:
             for lag_amount in range(1, feature_lag+1):
                 X_data[f"{feature}_lag{lag_amount}"] = X_data[feature].shift(lag_amount)
+                X_data[feature] = X_data[feature].astype("float", errors="ignore")
                 #logger.info(f"Column created: {feature}_lag{lag_amount}")
 
     features = X_data.columns.tolist()
@@ -430,7 +440,7 @@ def evaluate_model(
     best_params: Dict[str, float],
     onehot_encoding: bool = False,
     subsample_shap: Optional[bool] = False,
-) -> Tuple[float, float]:
+) -> Tuple[float, float, float, float, float, float]:
     """
     Evaluate the model using the best parameters found by the Optuna study.
     Generate predictions, compute errors, and create plots (error histogram, SHAP plots).
@@ -462,12 +472,26 @@ def evaluate_model(
 
     logger.info("Generating predictions on test set.")
     predictions = model.predict(X_test)
+
+    # Get metrics for model
     errors = abs(y_test - predictions)
     mean_error = errors.mean()
     logger.info(f"Mean Absolute Error on test set: {mean_error:.4f}")
 
     mape = mean_absolute_percentage_error(y_test, predictions)*100
-    logger.info(f"Mean Absolute Percent Error on test set: {mean_error:.4f}%")
+    logger.info(f"Mean Absolute Percent Error on test set: {mape:.4f}%")
+
+    r2 = r2_score(y_test, predictions)
+    logger.info(f"R Squared on test set: {r2:.4f}%")
+
+    mse = mean_squared_error(y_test, predictions)
+    logger.info(f"Mean Squared Error on test set: {mse:.4f}")
+
+    rmse = root_mean_squared_error(y_test, predictions)
+    logger.info(f"Root Mean Squared Error on test set: {rmse:.4f}")
+
+    rmsle = root_mean_squared_log_error(y_test, predictions)
+    logger.info(f"Root Mean Squared Log Error on test set: {rmsle:.4f}")
 
     logger.info("Generating error histogram.")
     sns.histplot(errors, bins=50, kde=True, stat="density")
@@ -476,7 +500,7 @@ def evaluate_model(
     plt.ylabel("Density")
     plt.savefig(f"figures/error_histogram_{study_name}.pdf")
     plt.close()
-
+    
     logger.info("Calculating SHAP values.")
     if subsample_shap:
         explainer = shap.Explainer(model, X_train.sample(frac=0.1).astype("float64"))
@@ -502,8 +526,25 @@ def evaluate_model(
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"figures/shap_bar_{study_name}.pdf")
     plt.close()
+    
+    logger.info("Generating Prediction error plot.")
+    plt.figure()
+    PredictionErrorDisplay.from_predictions(y_test,predictions,subsample=0.1)
+    plt.title(f"Prediction error Plot for {study_name}")
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.3)
+    plt.savefig(f"figures/error_plot_residuals_{study_name}.pdf")
+    plt.close()
 
-    return mean_error, mape
+    plt.figure()
+    PredictionErrorDisplay.from_predictions(y_test,predictions,kind="actual_vs_predicted",subsample=0.1)
+    plt.title(f"Prediction error Plot for {study_name}")
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.3)
+    plt.savefig(f"figures/error_plot_actuals_{study_name}.pdf")
+    plt.close()
+
+    return mean_error, mape, r2, mse, rmse, rmsle
 
 
 def main():
@@ -699,7 +740,7 @@ def main():
                 mould_position=args.mould_position,
             )
 
-            mae, mape = evaluate_model(
+            mae, mape, r2, mse, rmse, rmsle = evaluate_model(
                 train_df=train_df,
                 test_df=test_df,
                 features=features,
@@ -728,6 +769,10 @@ def main():
                 "lagged_features": lagged_features,
                 "mean_absolute_error": mae,
                 "mean_absolute_percent_error": mape,
+                "r_squared": r2,
+                "mean_squared_error": mse,
+                "root_mean_squared_error": rmse,
+                "root_mean_squared_log_error": rmsle,
                 "mould_position": args.mould_position,
             }
             if args.onehot_encoding:
