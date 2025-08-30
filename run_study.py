@@ -490,9 +490,6 @@ def evaluate_model(
     rmse = root_mean_squared_error(y_test, predictions)
     logger.info(f"Root Mean Squared Error on test set: {rmse:.4f}")
 
-    rmsle = root_mean_squared_log_error(y_test, predictions)
-    logger.info(f"Root Mean Squared Log Error on test set: {rmsle:.4f}")
-
     logger.info("Generating error histogram.")
     sns.histplot(errors, bins=50, kde=True, stat="density")
     plt.title(f"Histogram of Errors for {study_name}")
@@ -544,7 +541,7 @@ def evaluate_model(
     plt.savefig(f"figures/error_plot_actuals_{study_name}.pdf")
     plt.close()
 
-    return mean_error, mape, r2, mse, rmse, rmsle
+    return mean_error, mape, r2, mse, rmse
 
 
 def main():
@@ -740,7 +737,7 @@ def main():
                 mould_position=args.mould_position,
             )
 
-            mae, mape, r2, mse, rmse, rmsle = evaluate_model(
+            mae, mape, r2, mse, rmse = evaluate_model(
                 train_df=train_df,
                 test_df=test_df,
                 features=features,
@@ -772,7 +769,6 @@ def main():
                 "r_squared": r2,
                 "mean_squared_error": mse,
                 "root_mean_squared_error": rmse,
-                "root_mean_squared_log_error": rmsle,
                 "mould_position": args.mould_position,
             }
             if args.onehot_encoding:
