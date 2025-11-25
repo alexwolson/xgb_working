@@ -46,8 +46,10 @@ def predict_on_sheet(
     drop_cols: list,
     feature_lag: int,
     lagged_features: list,
+    all_sheets: list,
     onehot_values: dict = None,
     mould_position: bool = False,
+    piv_data: bool = False,
 ) -> pd.DataFrame:
     """
     Process one sheet: for each row, extract features (using a mapping computed once per sheet)
@@ -58,7 +60,24 @@ def predict_on_sheet(
     (even those that would be all zeros) are present.
     """
     # Use the sheet name to extract constant features
-    sheet_components = sheet_name.split("_")
+    if not piv_data:
+        sheet_components = sheet_name.split("_")
+        sheet_is_clogged = False
+        if clogging_factors:
+            if len(sheet_components) == 4:
+                sheet_is_clogged = False
+            elif len(sheet_components) == 5:
+                sheet_is_clogged = True
+    else:
+        sheet_components = list(all_sheets)[1].split("_")
+        sheet_is_clogged = False
+        if clogging_factors and "Clog" in sheet_components[1]:
+            sheet_is_clogged = True
+            sheet_components[2] = sheet_components[2][:3] # remove "mpm"
+            sheet_components[3] = sheet_components[3][:1] # remove "LPM"
+        sheet_components[2] = sheet_components[2][:3] # remove "mpm"
+        sheet_components[3] = sheet_components[3][:1] # remove "LPM"
+
     if len(sheet_components) < 4:
         # Fallback: extract components from the file name
         file_name_components = file_name.split("_")
@@ -111,13 +130,6 @@ def predict_on_sheet(
             return df
         actual_cols[col] = matches[0]
 
-    sheet_is_clogged = False
-    if clogging_factors:
-        if len(sheet_components) == 4:
-            sheet_is_clogged = False
-        elif len(sheet_components) == 5:
-            sheet_is_clogged = True
-
     predictions = []
     # Process each row using the precomputed column mapping
     for idx, row in df.iterrows():
@@ -152,12 +164,12 @@ def predict_on_sheet(
                 features_dict["CF"] = CF
                 features_dict["waterflow"] = sheet_components[2]
                 features_dict["airflow"] = sheet_components[3]
-                if mould_position:
+                if mould_position and not piv_data:
                     features_dict["mould_pos"] = sheet_components[4]
             else:
                 features_dict["waterflow"] = sheet_components[1]
                 features_dict["airflow"] = sheet_components[2]
-                if mould_position:
+                if mould_position and not piv_data:
                     features_dict["mould_pos"] = sheet_components[3]
                 if clogging_factors:
                     features_dict["CF"] = CF
@@ -169,60 +181,79 @@ def predict_on_sheet(
             predictions.append(None)
             continue
 
-        # Create a DataFrame for this single row and clean column names
-        features_df = pd.DataFrame([features_dict])
-        features_df.columns = [clean_column_name(col) for col in features_df.columns]
+        if piv_data:
+            mld_iterations = ["0-1","1-2","2-3","3-4"]
+        else:
+            mld_iterations = [features_dict["mould_pos"]]
 
-        # Convert numeric columns to proper data type
-        float_columns = [
-            "time[s]",
-            "AN_1_LL[m/s]",
-            "AN_2_LQ[m/s]",
-            "AN_3_RQ[m/s]",
-            "AN_4_RR[m/s]",
-            "ML_LL[mm]",
-            "ML_LQ[mm]",
-            "ML_RQ[mm]",
-            "ML_RR[mm]",
-            "L_wave_ht[mm]",
-            "R_wave_ht[mm]",
-        ]
-        float_columns = [clean_column_name(col) for col in float_columns]
-        for col in float_columns:
-            if col in features_df.columns:
-                features_df[col] = pd.to_numeric(features_df[col], errors="coerce")
+        avg_pred = []
 
-        # Apply one-hot encoding if enabled using training metadata
-        if onehot_encoding and onehot_values is not None:
-            for cat_feature in ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF", "mould_pos"]:
-                if cat_feature in features_df.columns:
-                    cat_val = features_df.at[0, cat_feature]
-                    for possible_val in onehot_values.get(cat_feature, []):
-                        dummy_col = clean_column_name(f"{cat_feature}_{possible_val}")
-                        features_df[dummy_col] = (
-                            1 if cat_val == str(possible_val) else 0
-                        )
-                    features_df.drop(columns=[cat_feature], inplace=True)
+        for mld_iter in mld_iterations:
+            features_dict["mould_pos"] = mld_iter
+            print("mld = ",mld_iter)
+            # Create a DataFrame for this single row and clean column names
+            features_df = pd.DataFrame([features_dict])
+            features_df.columns = [clean_column_name(col) for col in features_df.columns]
 
-        # Drop specified columns, if any
-        for col_to_drop in drop_cols:
-            for column in list(features_df.columns):
-                if clean_column_name(col_to_drop) == column:
-                    features_df.drop(columns=[column], inplace=True)
+            # Convert numeric columns to proper data type
+            float_columns = [
+                "time[s]",
+                "AN_1_LL[m/s]",
+                "AN_2_LQ[m/s]",
+                "AN_3_RQ[m/s]",
+                "AN_4_RR[m/s]",
+                "ML_LL[mm]",
+                "ML_LQ[mm]",
+                "ML_RQ[mm]",
+                "ML_RR[mm]",
+                "L_wave_ht[mm]",
+                "R_wave_ht[mm]",
+            ]
+            float_columns = [clean_column_name(col) for col in float_columns]
+            for col in float_columns:
+                if col in features_df.columns:
+                    features_df[col] = pd.to_numeric(features_df[col], errors="coerce")
 
-        # Fix column order
-        correct_cols = model.get_booster().feature_names
-        features_df = features_df[correct_cols]
+            # Apply one-hot encoding if enabled using training metadata
+            if onehot_encoding and onehot_values is not None:
+                for cat_feature in ["SEN", "Angle", "Depth", "waterflow", "airflow", "CF", "mould_pos"]:
+                    if cat_feature in features_df.columns:
+                        cat_val = features_df.at[0, cat_feature]
+                        for possible_val in onehot_values.get(cat_feature, []):
+                            dummy_col = clean_column_name(f"{cat_feature}_{possible_val}")
+                            features_df[dummy_col] = (
+                                1 if cat_val == str(possible_val) else 0
+                            )
+                        features_df.drop(columns=[cat_feature], inplace=True)
 
-        # Make prediction (assume single-row input)
-        try:
-            #print(features_df.to_string())
-            pred = model.predict(features_df)[0]
-        except Exception as e:
-            logger.error(f"Prediction error in row {idx} of sheet '{sheet_name}': {e}")
-            pred = None
-        predictions.append(pred)
+            # Drop specified columns, if any
+            for col_to_drop in drop_cols:
+                for column in list(features_df.columns):
+                    if clean_column_name(col_to_drop) == column:
+                        features_df.drop(columns=[column], inplace=True)
 
+            # Fix column order
+            correct_cols = model.get_booster().feature_names
+            features_df = features_df[correct_cols]
+
+            # Make prediction (assume single-row input)
+            try:
+                #print(features_df.to_string())
+                pred = model.predict(features_df)[0]
+            except Exception as e:
+                logger.error(f"Prediction error in row {idx} of sheet '{sheet_name}': {e}")
+                pred = None
+            
+            if piv_data:
+                avg_pred.append(pred)
+            else:
+                print(pred)
+                predictions.append(pred)
+
+        if piv_data:
+            predictions.append(sum(avg_pred))
+
+    
     # Add the predictions as a new column to the DataFrame
     nice_df[model_name] = predictions
     return nice_df
@@ -242,6 +273,7 @@ def process_excel_file(
     mould_position: bool = False,
     progress: "Progress" = None,
     progress_task: TaskID = None,
+    piv_data: bool = False,
 ) -> None:
     """
     Open an Excel file, process each sheet to add predictions, update the global progress,
@@ -257,6 +289,7 @@ def process_excel_file(
 
     file_name = file_path.stem
     updated_sheets = {}
+    all_sheets = sheets.keys()
 
     for sheet_name, df in sheets.items():
         updated_df = predict_on_sheet(
@@ -271,8 +304,10 @@ def process_excel_file(
             drop_cols,
             feature_lag,
             lagged_features,
+            all_sheets,
             onehot_values,
             mould_position,
+            piv_data
         )
         updated_sheets[sheet_name] = updated_df
         # Update the global progress bar after processing each sheet
@@ -304,6 +339,11 @@ def main():
         type=str,
         default="New_Data",
         help="Directory containing new Excel files (will be scanned recursively)",
+    )
+    parser.add_argument(
+        "--piv-data",
+        action="store_true",
+        help="If data being predicted on is PIV data",
     )
     args = parser.parse_args()
 
@@ -387,6 +427,7 @@ def main():
                     mould_position,
                     progress,
                     progress_task,
+                    args.piv_data
                 )
         logger.info(f"Predictions added using model {model_name} from {model_file}")
 
