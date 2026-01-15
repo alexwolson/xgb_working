@@ -131,6 +131,12 @@ def predict_on_sheet(
         actual_cols[col] = matches[0]
 
     predictions = []
+    piv_preds = {
+        "0-1": [],
+        "1-2": [],
+        "2-3": [],
+        "3-4":[]
+    }
     # Process each row using the precomputed column mapping
     for idx, row in df.iterrows():
         try:
@@ -186,11 +192,11 @@ def predict_on_sheet(
         else:
             mld_iterations = [features_dict["mould_pos"]]
 
-        avg_pred = []
+        sum_preds = []
 
         for mld_iter in mld_iterations:
             features_dict["mould_pos"] = mld_iter
-            print("mld = ",mld_iter)
+            # print("mld = ",mld_iter)
             # Create a DataFrame for this single row and clean column names
             features_df = pd.DataFrame([features_dict])
             features_df.columns = [clean_column_name(col) for col in features_df.columns]
@@ -245,17 +251,23 @@ def predict_on_sheet(
                 pred = None
             
             if piv_data:
-                avg_pred.append(pred)
+                sum_preds.append(pred)
+                piv_preds[mld_iter].append(pred)
+                # print(f"{mld_iter} {pred}")
             else:
-                print(pred)
+                # print(pred)
                 predictions.append(pred)
 
         if piv_data:
-            predictions.append(sum(avg_pred))
+            predictions.append(sum(sum_preds))
+            # print(sum(sum_preds))
 
     
     # Add the predictions as a new column to the DataFrame
     nice_df[model_name] = predictions
+    if piv_data:
+        for mld_iter in ["0-1","1-2","2-3","3-4"]:
+            nice_df[f"{model_name} mld {mld_iter}"] = piv_preds[mld_iter]
     return nice_df
 
 
