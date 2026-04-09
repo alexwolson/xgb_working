@@ -46,9 +46,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def generate_csv_files(
-    data_directory: str, preprocess_details:str, sen_geometrical: bool = False, clogging_factors: bool = False, mould_position: bool = False, remove_rows: int = 0
+    data_directory: str, preprocess_details:str, sen_geometrical: bool = False, clogging_factors: bool = False, mould_position: bool = False
 ) -> None:
     """
     Generate X.csv and y.csv from Excel files in the given data_directory.
@@ -107,14 +106,6 @@ def generate_csv_files(
                 if df.empty:
                     logger.warning(
                         f"No valid rows after dropping NA 'Target' in {sheet_name} of {file}."
-                    )
-                    continue
-                    
-                if not remove_rows == 0:
-                    df = df[:-200]
-                if df.empty:
-                    logger.warning(
-                        f"No valid rows after dropping {remove_rows} rows in {sheet_name} of {file}."
                     )
                     continue
 
@@ -216,7 +207,6 @@ def generate_csv_files(
     else:
         logger.warning(f"No data was extracted. X{preprocess_details}.csv and y{preprocess_details}.csv were not created.")
 
-
 def load_data(
     target: str = "Count_EX1",
     onehot_encoding: bool = False,
@@ -227,7 +217,6 @@ def load_data(
     feature_lag: int = 0,
     lagged_features: Optional[List[str]] = None,
     mould_position: bool = False,
-    remove_rows: int = 0
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess the dataset for a given target variable.
@@ -239,9 +228,8 @@ def load_data(
     sen_geometrical_type = "_Geometrical" if sen_geometrical else ""
     clogging_factors_type = "_Clogging" if clogging_factors else ""
     mould_position_type = "_Mould" if mould_position else "" 
-    remove_rows_type = f"_removed{remove_rows}" if not remove_rows == 0 else ""
     preprocess_details = (
-        f"{encoding_type}{sen_geometrical_type}{clogging_factors_type}{mould_position_type}{remove_rows_type}"
+        f"{encoding_type}{sen_geometrical_type}{clogging_factors_type}{mould_position_type}"
     )
 
     if (
@@ -256,8 +244,7 @@ def load_data(
             sen_geometrical=sen_geometrical,
             clogging_factors=clogging_factors,
             mould_position=mould_position,
-            preprocess_details=preprocess_details,
-            remove_rows=remove_rows
+            preprocess_details=preprocess_details
         )
 
     if (
@@ -366,7 +353,7 @@ def load_data(
     logger.info("Splitting data into training and test sets.")
     train_df, test_df = train_test_split(combined_df, test_size=0.2, random_state=42)
 
-     # Add 'set' column for train/test indicator
+    # Add 'set' column for train/test indicator
     train_df = train_df.copy()
     test_df = test_df.copy()
     train_df['set'] = 'train'
@@ -385,241 +372,6 @@ def load_data(
     )
 
     return train_df, test_df, features, onehot_values
-
-
-def run_optuna_study(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    features: List[str],
-    target: str,
-    study_name: str,
-    study_count: int = 1,
-    onehot_encoding: bool = False,
-    tree_method: str = "gpu_hist",
-    storage_path: str = "sqlite:///water_modelling.db",
-    multithread: bool = False,
-) -> optuna.Study:
-    """
-    Run an Optuna study to optimize XGBoost hyperparameters for the given dataset.
-    """
-
-    logger.info(f"Starting Optuna study: {study_name}")
-
-    def objective(trial: optuna.Trial) -> float:
-        params = {
-            "objective": "reg:squarederror",
-            "eval_metric": "mae",
-            "booster": "gbtree",
-            "verbosity": 0,
-            "tree_method": tree_method,
-            "grow_policy": trial.suggest_categorical(
-                "grow_policy", ["depthwise", "lossguide"]
-            ),
-            "max_depth": trial.suggest_int("max_depth", 3, 20),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 1.0, log=True),
-            "subsample": 1.0,
-            "colsample_bytree": 1.0,
-            "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
-            "reg_alpha": trial.suggest_float("reg_alpha", 1e-3, 1e3, log=True),
-            "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 1e3, log=True),
-            "n_estimators": trial.suggest_int("n_estimators", 100, 1000, log=True),
-        }
-
-        model = xgb.XGBRegressor(**params, enable_categorical=not onehot_encoding)
-        model.fit(train_df[features], train_df[target])
-        preds = model.predict(test_df[features])
-        mae = mean_absolute_error(test_df[target], preds)
-        return mae
-
-    if multithread:
-        storage = JournalStorage(JournalFileBackend(f"optuna_{study_name}.log"))
-    else:
-        storage = storage_path
-
-    study = optuna.create_study(
-        direction="minimize",
-        study_name=study_name,
-        storage=storage,
-        load_if_exists=True,
-    )
-
-    logger.info("Optimizing hyperparameters with Optuna.")
-
-    study.optimize(
-        objective, n_trials=study_count, gc_after_trial=True, show_progress_bar=True
-    )
-
-    logger.info(f"Best trial for {study_name}: {study.best_trial.number}")
-    logger.info(f"Best value (MAE): {study.best_value:.4f}")
-    logger.info(f"Best params: {study.best_params}")
-
-    return study
-
-
-def evaluate_model(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    features: List[str],
-    target: str,
-    study_name: str,
-    best_params: Dict[str, float],
-    onehot_encoding: bool = False,
-    subsample_shap: Optional[bool] = False,
-) -> Tuple[Tuple[float, float, float, float, float],Tuple[float, float, float, float, float]]:
-    """
-    Evaluate the model using the best parameters found by the Optuna study.
-    Generate predictions, compute errors, and create plots (error histogram, SHAP plots).
-    """
-
-    logger.info(f"Evaluating model for study: {study_name}")
-
-    X_train = train_df[features]
-    y_train = train_df[target]
-
-    X_test = test_df[features]
-    y_test = test_df[target]
-
-    os.makedirs("xgb_models", exist_ok=True)
-    os.makedirs("figures", exist_ok=True)
-
-    model_path = Path(f"xgb_models/{study_name}.json")
-
-    if model_path.exists():
-        logger.info(f"Loading model from file: {model_path}")
-        model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
-        model.load_model(str(model_path))
-    else:
-        logger.info(f"Training model for {study_name}")
-        model = xgb.XGBRegressor(**best_params, enable_categorical=not onehot_encoding)
-        model.fit(X_train, y_train)
-        model.save_model(str(model_path))
-        logger.info(f"Model saved to {model_path}")
-
-    logger.info("Generating predictions on test set.")
-    predictions = model.predict(X_test)
-
-    # Get metrics for model
-    errors = abs(y_test - predictions)
-    mean_error = errors.mean()
-    logger.info(f"Mean Absolute Error on test set: {mean_error:.4f}")
-
-    mape = mean_absolute_percentage_error(y_test, predictions)*100
-    logger.info(f"Mean Absolute Percent Error on test set: {mape:.4f}%")
-
-    r2 = r2_score(y_test, predictions)
-    logger.info(f"R Squared on test set: {r2:.4f}%")
-
-    mse = mean_squared_error(y_test, predictions)
-    logger.info(f"Mean Squared Error on test set: {mse:.4f}")
-
-    rmse = root_mean_squared_error(y_test, predictions)
-    logger.info(f"Root Mean Squared Error on test set: {rmse:.4f}")
-
-    logger.info("Generating error histogram.")
-    sns.histplot(errors, bins=50, kde=True, stat="density")
-    plt.title(f"Histogram of Errors for {study_name}")
-    plt.xlabel("Absolute Error")
-    plt.ylabel("Density")
-    plt.savefig(f"figures/error_histogram_{study_name}.pdf")
-    plt.close()
-    
-    logger.info("Calculating SHAP values.")
-    if subsample_shap:
-        explainer = shap.Explainer(model, X_train.sample(frac=0.1).astype("float64"))
-        shap_values = explainer(X_test[: len(X_test) // 10])
-    else:
-        explainer = shap.Explainer(model, X_train.astype("float64"))
-        shap_values = explainer(X_test)
-
-    logger.info("Generating SHAP beeswarm plot.")
-    plt.figure()
-    shap.plots.beeswarm(shap_values, show=False, max_display=100)
-    plt.title(f"SHAP Beeswarm Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/shap_{study_name}.pdf")
-    plt.close()
-
-    logger.info("Generating SHAP bar plot.")
-    plt.figure()
-    shap.plots.bar(shap_values, show=False, max_display=100)
-    plt.title(f"SHAP Bar Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/shap_bar_{study_name}.pdf")
-    plt.close()
-    
-    logger.info("Generating Prediction error plot.")
-    plt.figure()
-    PredictionErrorDisplay.from_predictions(y_test,predictions,subsample=0.1)
-    plt.title(f"Prediction error Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/error_plot_residuals_{study_name}.pdf")
-    plt.close()
-
-    plt.figure()
-    PredictionErrorDisplay.from_predictions(y_test,predictions,kind="actual_vs_predicted",subsample=0.1)
-    plt.title(f"Prediction error Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/error_plot_actuals_{study_name}.pdf")
-    plt.close()
-
-    test = (mean_error, mape, r2, mse, rmse)
-
-    #
-    # Train error metrics
-    #
-
-    logger.info("Generating predictions on train set.")
-    train_predictions = model.predict(X_train)
-
-    # Get metrics for model
-    train_errors = abs(y_train - train_predictions)
-    train_mean_error = train_errors.mean()
-    logger.info(f"Mean Absolute Error on train set: {train_mean_error:.4f}")
-
-    train_mape = mean_absolute_percentage_error(y_train, train_predictions)*100
-    logger.info(f"Mean Absolute Percent Error on train set: {train_mape:.4f}%")
-
-    train_r2 = r2_score(y_train, train_predictions)
-    logger.info(f"R Squared on train set: {train_r2:.4f}%")
-
-    train_mse = mean_squared_error(y_train, train_predictions)
-    logger.info(f"Mean Squared Error on train set: {train_mse:.4f}")
-
-    train_rmse = root_mean_squared_error(y_train, train_predictions)
-    logger.info(f"Root Mean Squared Error on train set: {train_rmse:.4f}")
-
-    logger.info("Generating error histogram.")
-    sns.histplot(train_errors, bins=50, kde=True, stat="density")
-    plt.title(f"Histogram of Errors for {study_name}")
-    plt.xlabel("Absolute Error")
-    plt.ylabel("Density")
-    plt.savefig(f"figures/error_histogram_{study_name}.pdf")
-    plt.close()
-
-    logger.info("Generating Prediction error plot.")
-    plt.figure()
-    PredictionErrorDisplay.from_predictions(y_train,train_predictions,subsample=0.1)
-    plt.title(f"Prediction error Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/error_plot_residuals_{study_name}.pdf")
-    plt.close()
-
-    plt.figure()
-    PredictionErrorDisplay.from_predictions(y_train,train_predictions,kind="actual_vs_predicted",subsample=0.1)
-    plt.title(f"Prediction error Plot for {study_name}")
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.3)
-    plt.savefig(f"figures/error_plot_actuals_{study_name}.pdf")
-    plt.close()
-
-    train = (train_mean_error, train_mape, train_r2, train_mse, train_rmse)
-
-    return test,train
 
 
 def main():
@@ -731,12 +483,6 @@ def main():
         action="store_true",
         help="Use mould position (0-1,1-2,2-3,3-4) as a feature.",
     )
-    parser.add_argument(
-        "--remove-rows",
-        type=int,
-        default=0,
-        help="Positive int amount of rows to remove from the end.",
-    )
 
     args = parser.parse_args()
 
@@ -760,124 +506,14 @@ def main():
     training_configs = []
 
     for target in args.targets:
-        encoding_type = "OneHot" if args.onehot_encoding else "Categorical"
-        sen_geometrical_type = "_Geometrical" if args.sen_geometrical else ""
-        clogging_factors_type = "_Clogging" if args.clogging_factors else ""
-        feature_lag = args.feature_lag_amount
-        mould_position = "_Mould" if args.mould_position else "" 
-        full_study_name = f"{args.study_name}_{target}_{encoding_type}{sen_geometrical_type}{clogging_factors_type}_{feature_lag}Lag{mould_position}"
-
-        if not args.evaluate_only:
-            logger.info(
-                f"Starting experiment for target: {target} - study: {full_study_name}"
-            )
-
-            # load_data now returns onehot_values as an additional element
-            train_df, test_df, features, onehot_values = load_data(
-                target=target,
-                onehot_encoding=args.onehot_encoding,
-                sen_geometrical=args.sen_geometrical,
-                clogging_factors=args.clogging_factors,
-                discard_features=discard_features,
-                data_directory=args.data_directory,
-                feature_lag=args.feature_lag_amount,
-                lagged_features=lagged_features,
-                mould_position=args.mould_position,
-                remove_rows=args.remove_rows
-            )
-
-            study = run_optuna_study(
-                train_df=train_df,
-                test_df=test_df,
-                features=features,
-                target=target,
-                study_name=full_study_name,
-                study_count=args.study_count,
-                onehot_encoding=args.onehot_encoding,
-                tree_method=args.tree_method,
-                storage_path=args.storage_path,
-                multithread=args.multithread,
-            )
-
-        else:
-            if args.multithread:
-                storage = JournalStorage(
-                    JournalFileBackend(f"optuna_{full_study_name}.log")
-                )
-            else:
-                storage = args.storage_path
-
-            study = optuna.load_study(study_name=full_study_name, storage=storage)
-            best_trial = study.best_trial
-            best_params = best_trial.params
-            train_df, test_df, features, onehot_values = load_data(
-                target=target,
-                onehot_encoding=args.onehot_encoding,
-                sen_geometrical=args.sen_geometrical,
-                clogging_factors=args.clogging_factors,
-                discard_features=discard_features,
-                data_directory=args.data_directory,
-                feature_lag=args.feature_lag_amount,
-                lagged_features=lagged_features,
-                mould_position=args.mould_position,
-                remove_rows=args.remove_rows
-            )
-
-            (mae, mape, r2, mse, rmse), (train_mae, train_mape, train_r2, train_mse, train_rmse) = evaluate_model(
-                train_df=train_df,
-                test_df=test_df,
-                features=features,
-                target=target,
-                study_name=full_study_name,
-                best_params=best_params,
-                onehot_encoding=args.onehot_encoding,
-                subsample_shap=args.subsample_shap,
-            )
-
-            # Build the configuration details for this run
-            config = {
-                "target": target,
-                "onehot_encoding": args.onehot_encoding,
-                "sen_geometrical": args.sen_geometrical,
-                "clogging_factors": args.clogging_factors,
-                "discard_features": discard_features,
-                "data_directory": args.data_directory,
-                "model_save_location": f"xgb_models/{full_study_name}.json",
-                "tree_method": args.tree_method,
-                "study_name": full_study_name,
-                "storage_path": args.storage_path,
-                "multithread": args.multithread,
-                "study_count": args.study_count,
-                "feature_lag": args.feature_lag_amount,
-                "lagged_features": lagged_features,
-                "test": {
-                    "mean_absolute_error": mae,
-                    "mean_absolute_percent_error": mape,
-                    "r_squared": r2,
-                    "mean_squared_error": mse,
-                    "root_mean_squared_error": rmse
-                    },
-                "train": { 
-                    "mean_absolute_error": train_mae,
-                    "mean_absolute_percent_error": train_mape,
-                    "r_squared": train_r2,
-                    "mean_squared_error": train_mse,
-                    "root_mean_squared_error": train_rmse
-                    },
-                "mould_position": args.mould_position,
-            }
-            if args.onehot_encoding:
-                config["onehot_values"] = onehot_values
-
-            training_configs.append(config)
-
-            # Save the accumulated training configuration to a JSON file
-            with open(args.config_file, "w") as f:
-                json.dump(training_configs, f, indent=4)
-            logger.info(f"Training configuration saved to {args.config_file}")
-
-            logger.info("All experiments completed successfully.")
-
-
-if __name__ == "__main__":
-    main()
+        train_df, test_df, features, onehot_values = load_data(
+                        target=target,
+                        onehot_encoding=args.onehot_encoding,
+                        sen_geometrical=args.sen_geometrical,
+                        clogging_factors=args.clogging_factors,
+                        discard_features=discard_features,
+                        data_directory=args.data_directory,
+                        feature_lag=args.feature_lag_amount,
+                        lagged_features=lagged_features,
+                        mould_position=args.mould_position,
+                    )
