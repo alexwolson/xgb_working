@@ -1,10 +1,9 @@
 .idea
 figures/
 data/
-xgb_models/
-pivdata/
+xgb_models
+pivdata
 cloggedData/
-pivdata/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
