@@ -142,7 +142,7 @@ Enter the directory containing the repository:
 `cd steel_flow_sensor_prediction`
 
 ### Submit the job
-`sbatch study_job.sh` or `sbatch predict_job.sh` (CHECK THE PARAMETERS BEFORE RUNNING)
+`sbatch scripts/hpc/study_job.sh` or `sbatch scripts/hpc/predict_job.sh` (CHECK THE PARAMETERS BEFORE RUNNING)
 If `predict_job.sh` runs into issues, you can move the model, JSON file, and .db file (.log for multithreaded) to your own computer through Globus and run `uv run predict` locally instead.
 
 ### Monitor the job
@@ -159,7 +159,7 @@ If you find that training two variables in one job is unfeasible, train them one
 ### Multithreading (not tested thoroughly)
 Unfortunately, because Cedar and Graham are down for maintenance, proper multithreading is poorly implemented and might crash. This is because MySQL and PostgreSQL are only available on those clusters, and they support multi-thread write operations much better than SQLite. I got it briefly running with 2 cores. 
 
-This led me to use a workaround: JournalStorage. This is selected through the `--multithread` parameter. Hopefully this is more stable. Additionally, `uv run tune` must be run again with the SAME parameters and `--evaluate-only` to evaluate the model and build the training_config JSON file. `multithread_study_eval.sh` is setup to do this. 
+This led me to use a workaround: JournalStorage. This is selected through the `--multithread` parameter. Hopefully this is more stable. Additionally, run `uv run train` with the SAME parameters to train the best model and generate the training config JSON file. `multithread_study_eval.sh` is setup to do this. 
 
 There's also sometimes an error saying:
 ```

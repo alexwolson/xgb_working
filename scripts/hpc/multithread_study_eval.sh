@@ -11,14 +11,12 @@ source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index -r requirementscomputecan.txt
 
-uv run tune --targets Count_EX1 Count_EX2 \
+uv run train --targets Count_EX1 Count_EX2 \
 --study-name ComputeCan_20250625_test1 \
---study-count 10 \
 --onehot-encoding \
 --sen-geometrical \
 --discard-features "time[s]" \
 --data-directory data/raw/Organized_Data \
 --subsample-shap \
 --multithread \
---evaluate-only \
 --tree-method hist
