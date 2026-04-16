@@ -41,6 +41,9 @@ def run_study(
         multithread: Use JournalStorage instead of SQLite.
         seed: Random seed for the TPE sampler.
         objective: XGBoost objective function (e.g. 'reg:squarederror', 'count:poisson').
+
+    Returns:
+        optuna.Study: The completed study object with best_trial and best_value populated.
     """
     logger.info(f"Starting Optuna study: {study_name}")
 
