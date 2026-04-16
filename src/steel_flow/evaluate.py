@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import shap
@@ -27,18 +28,25 @@ def compute_metrics(
     """
     Compute regression metrics for model predictions on (X, y).
     Returns dict with keys: mean_absolute_error, mean_absolute_percent_error,
-    r_squared, mean_squared_error, root_mean_squared_error.
+    r_squared, mean_squared_error, root_mean_squared_error, mape_zero_excluded.
     """
     predictions = model.predict(X)
+    n_zeros = int((y == 0).sum())
+    if n_zeros > 0:
+        logger.warning(
+            f"MAPE: {n_zeros} of {len(y)} ({100 * n_zeros / len(y):.1f}%) "
+            "true values are zero and are excluded from sklearn's MAPE calculation."
+        )
     metrics = {
         "mean_absolute_error": float(mean_absolute_error(y, predictions)),
         "mean_absolute_percent_error": float(mean_absolute_percentage_error(y, predictions) * 100),
         "r_squared": float(r2_score(y, predictions)),
         "mean_squared_error": float(mean_squared_error(y, predictions)),
         "root_mean_squared_error": float(root_mean_squared_error(y, predictions)),
+        "mape_zero_excluded": n_zeros,
     }
     logger.info(f"MAE: {metrics['mean_absolute_error']:.4f}")
-    logger.info(f"MAPE: {metrics['mean_absolute_percent_error']:.4f}%")
+    logger.info(f"MAPE: {metrics['mean_absolute_percent_error']:.4f}% (zeros excluded: {n_zeros})")
     logger.info(f"R²: {metrics['r_squared']:.4f}")
     logger.info(f"RMSE: {metrics['root_mean_squared_error']:.4f}")
     return metrics
@@ -51,14 +59,31 @@ def plot_error_histogram(
     study_name: str,
     figures_dir: str = "data/output/figures",
 ) -> None:
-    """Save error histogram PDF to figures_dir."""
+    """Save a two-panel error histogram PDF to figures_dir.
+
+    Left panel: absolute errors. Right panel: signed errors (true − predicted)
+    with a dashed zero line to reveal systematic bias.
+    """
     Path(figures_dir).mkdir(parents=True, exist_ok=True)
     predictions = model.predict(X)
-    errors = abs(y - predictions)
-    sns.histplot(errors, bins=50, kde=True, stat="density")
-    plt.title(f"Histogram of Errors for {study_name}")
-    plt.xlabel("Absolute Error")
-    plt.ylabel("Density")
+    signed_errors = y.values - predictions
+    abs_errors = np.abs(signed_errors)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+    sns.histplot(abs_errors, bins=50, kde=True, stat="density", ax=axes[0])
+    axes[0].set_title(f"Absolute Error — {study_name}")
+    axes[0].set_xlabel("Absolute Error")
+    axes[0].set_ylabel("Density")
+
+    sns.histplot(signed_errors, bins=50, kde=True, stat="density", ax=axes[1])
+    axes[1].axvline(0, color="red", linestyle="--", alpha=0.7, label="zero")
+    axes[1].set_title(f"Signed Error (true − predicted) — {study_name}")
+    axes[1].set_xlabel("Signed Error")
+    axes[1].set_ylabel("Density")
+    axes[1].legend()
+
+    plt.tight_layout()
     plt.savefig(f"{figures_dir}/error_histogram_{study_name}.pdf")
     plt.close()
     logger.info(f"Error histogram saved to {figures_dir}/error_histogram_{study_name}.pdf")
@@ -72,19 +97,32 @@ def plot_shap(
     subsample_shap: bool = False,
     figures_dir: str = "data/output/figures",
 ) -> None:
-    """Save SHAP beeswarm and bar PDFs to figures_dir."""
+    """Save SHAP beeswarm and bar PDFs to figures_dir.
+
+    When subsample_shap=True, uses a random 10 % sample of both train (for the
+    SHAP background) and test (for explanations), with random_state=42 for
+    reproducibility. Sample sizes are shown in plot titles.
+    """
     Path(figures_dir).mkdir(parents=True, exist_ok=True)
     logger.info("Calculating SHAP values.")
+
     if subsample_shap:
-        explainer = shap.Explainer(model, X_train.sample(frac=0.1).astype("float64"))
-        shap_values = explainer(X_test[: len(X_test) // 10].astype("float64"))
+        background = X_train.sample(frac=0.1, random_state=42).astype("float64")
+        explain_set = X_test.sample(frac=0.1, random_state=42).astype("float64")
     else:
-        explainer = shap.Explainer(model, X_train.astype("float64"))
-        shap_values = explainer(X_test.astype("float64"))
+        background = X_train.astype("float64")
+        explain_set = X_test.astype("float64")
+
+    n_explain = len(explain_set)
+    n_test_total = len(X_test)
+    sample_note = f"n={n_explain}" if not subsample_shap else f"n={n_explain} of {n_test_total}"
+
+    explainer = shap.Explainer(model, background)
+    shap_values = explainer(explain_set)
 
     plt.figure()
     shap.plots.beeswarm(shap_values, show=False, max_display=100)
-    plt.title(f"SHAP Beeswarm Plot for {study_name}")
+    plt.title(f"SHAP Beeswarm — {study_name} ({sample_note})")
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/shap_{study_name}.pdf")
@@ -92,12 +130,12 @@ def plot_shap(
 
     plt.figure()
     shap.plots.bar(shap_values, show=False, max_display=100)
-    plt.title(f"SHAP Bar Plot for {study_name}")
+    plt.title(f"SHAP Bar — {study_name} ({sample_note})")
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/shap_bar_{study_name}.pdf")
     plt.close()
-    logger.info(f"SHAP plots saved to {figures_dir}/")
+    logger.info(f"SHAP plots saved to {figures_dir}/ ({sample_note})")
 
 
 def plot_prediction_error(
