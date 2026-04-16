@@ -33,7 +33,7 @@ def _common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--targets", nargs="+", type=str, default=["Count_EX1"],
                         choices=["Count_EX1", "Count_EX2"], help="Target variables")
     parser.add_argument("--study-name", type=str, default="water_modelling", help="Optuna study name prefix")
-    parser.add_argument("--study_count", type=int, default=1, help="Number of Optuna trials")
+    parser.add_argument("--study-count", type=int, default=1, help="Number of Optuna trials")
     parser.add_argument("--onehot-encoding", action="store_true", help="One-hot encode categorical features")
     parser.add_argument("--sen-geometrical", action="store_true", help="Convert SEN to geometrical features")
     parser.add_argument("--clogging-factors", action="store_true", help="Include clogging factors")
@@ -110,7 +110,7 @@ def train() -> None:
     """Entry point for `uv run train`. Loads best Optuna params, trains final model, evaluates."""
     parser = argparse.ArgumentParser(description="Train final model using best Optuna params and evaluate")
     _common_args(parser)
-    parser.add_argument("--subsample-shap", action="store_true", default=False)
+    parser.add_argument("--subsample-shap", action="store_true")
     parser.add_argument("--config-file", type=str, default=None,
                         help="Output filename for training config JSON (default: training_config_<study-name>.json)")
     args = parser.parse_args()
@@ -203,7 +203,7 @@ def predict() -> None:
         description="Apply trained model(s) from a config JSON to new Excel files"
     )
     parser.add_argument("--config-file", type=str, required=True,
-                        help="Path to training config JSON produced by `uv run train`")
+                        help="Path to training config JSON produced by `uv run train` (e.g., config/training_config_myStudy.json)")
     parser.add_argument("--data-directory", type=str, default="New_Data",
                         help="Directory containing new Excel files (scanned recursively)")
     parser.add_argument("--piv-data", action="store_true", help="Data is PIV format")
