@@ -296,11 +296,11 @@ def load_data(
                 group[feature] = group[feature].astype("float", errors="ignore")
             return group
 
-        labels = X_data["label"].values
+        label_series = X_data["label"]
         X_data = X_data.groupby("label", group_keys=False).apply(
             _apply_sheet_lags, include_groups=False
         )
-        X_data["label"] = labels
+        X_data["label"] = label_series
 
     features = [c for c in X_data.columns.tolist() if c != "label"]
 
