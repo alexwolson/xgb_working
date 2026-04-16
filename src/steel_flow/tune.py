@@ -1,23 +1,15 @@
 import logging
-from typing import Dict, List
+from typing import List
 
 import optuna
 import pandas as pd
 import xgboost as xgb
 from optuna.storages import JournalStorage
 from optuna.storages.journal import JournalFileBackend
-from rich.console import Console
-from rich.logging import RichHandler
 from sklearn.metrics import mean_absolute_error
 
-console = Console()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler(console=console)],
-)
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def run_study(
@@ -38,7 +30,6 @@ def run_study(
     def objective(trial: optuna.Trial) -> float:
         params = {
             "objective": "reg:squarederror",
-            "eval_metric": "mae",
             "booster": "gbtree",
             "verbosity": 0,
             "tree_method": tree_method,

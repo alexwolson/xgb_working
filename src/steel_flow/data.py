@@ -4,19 +4,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-from rich.console import Console
-from rich.logging import RichHandler
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from sklearn.model_selection import train_test_split
 
-console = Console()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler(console=console)],
-)
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 SEN_GEOMETRY: Dict[str, Dict[str, int]] = {
     "10": {"Angle": -15, "Depth": 40},
@@ -74,7 +66,6 @@ def generate_csv_files(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TimeElapsedColumn(),
-        console=console,
     ) as progress:
         task = progress.add_task("[green]Processing Excel files...", total=len(excel_files))
 
