@@ -112,6 +112,7 @@ def generate_csv_files(
                 for _, row in df.iterrows():
                     try:
                         feature_dict = {
+                            "label": sheet_name,
                             "time[s]": row.iloc[0],
                             "AN_1_LL[m/s]": row.iloc[9],
                             "AN_2_LQ[m/s]": row.iloc[10],
@@ -189,7 +190,7 @@ def load_data(
     """
     encoding_type = "OneHot" if onehot_encoding else "Categorical"
     preprocess_details = (
-        f"{encoding_type}"
+        f"v2_{encoding_type}"
         f"{'_Geometrical' if sen_geometrical else ''}"
         f"{'_Clogging' if clogging_factors else ''}"
         f"{'_Mould' if mould_position else ''}"
@@ -250,13 +251,19 @@ def load_data(
 
     if feature_lag != 0 and lagged_features:
         cleaned_lag = [clean_column_name(f) for f in lagged_features]
-        logger.info(f"Lagging features: {cleaned_lag}")
-        for feature in cleaned_lag:
-            for lag_amount in range(1, feature_lag + 1):
-                X_data[f"{feature}_lag{lag_amount}"] = X_data[feature].shift(lag_amount)
-            X_data[feature] = X_data[feature].astype("float", errors="ignore")
+        logger.info(f"Lagging features per sheet: {cleaned_lag}")
 
-    features = X_data.columns.tolist()
+        def _apply_sheet_lags(group: pd.DataFrame) -> pd.DataFrame:
+            group = group.copy()
+            for feature in cleaned_lag:
+                for lag_amount in range(1, feature_lag + 1):
+                    group[f"{feature}_lag{lag_amount}"] = group[feature].shift(lag_amount)
+                group[feature] = group[feature].astype("float", errors="ignore")
+            return group
+
+        X_data = X_data.groupby("label", group_keys=False).apply(_apply_sheet_lags)
+
+    features = [c for c in X_data.columns.tolist() if c != "label"]
 
     combined_df = pd.concat([X_data, y_data], axis=1)
     combined_df.dropna(inplace=True)
