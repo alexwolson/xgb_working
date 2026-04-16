@@ -50,6 +50,16 @@ def _common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--feature-lag-amount", type=int, default=0)
     parser.add_argument("--mould-position", action="store_true", help="Include mould position as feature")
     parser.add_argument("--remove-rows", type=int, default=0, help="Rows to remove from end of each sheet")
+    parser.add_argument(
+        "--objective",
+        type=str,
+        default="reg:squarederror",
+        choices=["reg:squarederror", "count:poisson", "reg:tweedie"],
+        help=(
+            "XGBoost objective function. Default: reg:squarederror. "
+            "Use count:poisson for non-negative integer count targets."
+        ),
+    )
 
 
 def _build_study_name(args: argparse.Namespace, target: str) -> str:
@@ -77,7 +87,7 @@ def tune() -> None:
         full_study_name = _build_study_name(args, target)
         logger.info(f"Starting tune for target: {target} — study: {full_study_name}")
 
-        train_df, test_df, features, _ = data_mod.load_data(
+        train_df, val_df, test_df, features, _ = data_mod.load_data(
             target=target,
             onehot_encoding=args.onehot_encoding,
             sen_geometrical=args.sen_geometrical,
@@ -92,7 +102,7 @@ def tune() -> None:
 
         tune_mod.run_study(
             train_df=train_df,
-            test_df=test_df,
+            val_df=val_df,
             features=features,
             target=target,
             study_name=full_study_name,
@@ -101,6 +111,8 @@ def tune() -> None:
             tree_method=args.tree_method,
             storage_path=args.storage_path,
             multithread=args.multithread,
+            seed=42,
+            objective=args.objective,
         )
 
     logger.info("Tuning complete.")
@@ -134,7 +146,7 @@ def train() -> None:
         study = optuna.load_study(study_name=full_study_name, storage=storage)
         best_params = study.best_trial.params
 
-        train_df, test_df, features, onehot_values = data_mod.load_data(
+        train_df, val_df, test_df, features, onehot_values = data_mod.load_data(
             target=target,
             onehot_encoding=args.onehot_encoding,
             sen_geometrical=args.sen_geometrical,
@@ -154,15 +166,20 @@ def train() -> None:
             study_name=full_study_name,
             best_params=best_params,
             onehot_encoding=args.onehot_encoding,
+            objective=args.objective,
         )
 
         X_train = train_df[features]
         y_train = train_df[target]
+        X_val = val_df[features]
+        y_val = val_df[target]
         X_test = test_df[features]
         y_test = test_df[target]
 
-        logger.info("Evaluating on test set.")
+        logger.info("Evaluating on held-out test set (never seen during HPO).")
         test_metrics = eval_mod.compute_metrics(model, X_test, y_test)
+        logger.info("Evaluating on validation set.")
+        val_metrics = eval_mod.compute_metrics(model, X_val, y_val)
         logger.info("Evaluating on train set.")
         train_metrics = eval_mod.compute_metrics(model, X_train, y_train)
 
@@ -179,6 +196,7 @@ def train() -> None:
             "data_directory": args.data_directory,
             "model_save_location": f"data/output/models/{full_study_name}.json",
             "tree_method": args.tree_method,
+            "objective": args.objective,
             "study_name": full_study_name,
             "storage_path": args.storage_path,
             "multithread": args.multithread,
@@ -188,6 +206,7 @@ def train() -> None:
             "mould_position": args.mould_position,
             "remove_rows": args.remove_rows,
             "test": test_metrics,
+            "val": val_metrics,
             "train": train_metrics,
         }
         if args.onehot_encoding:
