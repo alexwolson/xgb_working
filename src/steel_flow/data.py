@@ -47,12 +47,7 @@ def generate_csv_files(
 
     logger.info(f"Generating X{preprocess_details}.csv and y{preprocess_details}.csv from raw data.")
 
-    excel_files = [
-        file
-        for folder in tabular_root.glob("**/*")
-        if folder.is_dir()
-        for file in folder.glob("**/*.xlsx")
-    ]
+    excel_files = list(tabular_root.glob("**/*.xlsx"))
 
     if not excel_files:
         logger.warning("No Excel files found. No CSVs generated.")
@@ -82,7 +77,7 @@ def generate_csv_files(
                     logger.warning(f"'Target' column not found in sheet {sheet_name} of {file}. Skipping.")
                     continue
 
-                df.dropna(subset=["Target"], inplace=True)
+                df = df.dropna(subset=["Target"])
                 if df.empty:
                     logger.warning(f"No valid rows after dropping NA 'Target' in {sheet_name} of {file}.")
                     continue

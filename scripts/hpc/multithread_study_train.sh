@@ -11,7 +11,7 @@ virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 
 pip install --no-index --upgrade pip
-pip install --no-index -r requirementscomputecan.txt
+pip install --no-index -r requirements-computecan.txt
 
 srun uv run tune --targets Count_EX1 Count_EX2 \
 --study-name ComputeCan_20250625_test1 \

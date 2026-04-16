@@ -186,6 +186,7 @@ def train() -> None:
             "feature_lag": args.feature_lag_amount,
             "lagged_features": lagged_features,
             "mould_position": args.mould_position,
+            "remove_rows": args.remove_rows,
             "test": test_metrics,
             "train": train_metrics,
         }
