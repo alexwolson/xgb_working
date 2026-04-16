@@ -186,6 +186,8 @@ def load_data(
 
     Returns (train_df, test_df, feature_names, onehot_values).
     Both DataFrames contain feature columns, the target column, and a 'set' column.
+    Note: DataFrames also contain a 'label' column (sheet name) used for splitting;
+    it is excluded from feature_names and should not be passed to the model.
     Callers should index features with train_df[features] and target with train_df[target].
     """
     encoding_type = "OneHot" if onehot_encoding else "Categorical"
@@ -261,7 +263,11 @@ def load_data(
                 group[feature] = group[feature].astype("float", errors="ignore")
             return group
 
-        X_data = X_data.groupby("label", group_keys=False).apply(_apply_sheet_lags)
+        labels = X_data["label"].values
+        X_data = X_data.groupby("label", group_keys=False).apply(
+            _apply_sheet_lags, include_groups=False
+        )
+        X_data["label"] = labels
 
     features = [c for c in X_data.columns.tolist() if c != "label"]
 

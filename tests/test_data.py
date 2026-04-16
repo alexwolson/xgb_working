@@ -36,7 +36,9 @@ class TestPerSheetLag:
             group["feature_lag1"] = group["feature"].shift(1)
             return group
 
-        result = df.groupby("label", group_keys=False).apply(apply_lag)
+        labels = df["label"].values
+        result = df.groupby("label", group_keys=False).apply(apply_lag, include_groups=False)
+        result["label"] = labels
         sheet_b = result[result["label"] == "sheet_B"].reset_index(drop=True)
         assert pd.isna(sheet_b.loc[0, "feature_lag1"]), (
             "Expected NaN at first row of sheet_B; got "
@@ -55,7 +57,10 @@ class TestPerSheetLag:
             group["feature_lag1"] = group["feature"].shift(1)
             return group
 
-        result = df.groupby("label", group_keys=False).apply(apply_lag).reset_index(drop=True)
+        labels = df["label"].values
+        result = df.groupby("label", group_keys=False).apply(apply_lag, include_groups=False)
+        result["label"] = labels
+        result = result.reset_index(drop=True)
         assert pd.isna(result.loc[0, "feature_lag1"])
         assert result.loc[1, "feature_lag1"] == 10.0
         assert result.loc[2, "feature_lag1"] == 20.0
