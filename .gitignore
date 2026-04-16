@@ -3,6 +3,8 @@ data/
 xgb_models/
 pivdata/
 cloggedData/
+/New_Data/
+/Clogging_Data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -169,5 +171,4 @@ cython_debug/
 /water_modelling.db
 /X.csv
 /y.csv
-training_config*
-*.log
+/training_config*
