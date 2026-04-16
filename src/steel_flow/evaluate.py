@@ -30,9 +30,8 @@ def compute_metrics(
     r_squared, mean_squared_error, root_mean_squared_error.
     """
     predictions = model.predict(X)
-    errors = abs(y - predictions)
     metrics = {
-        "mean_absolute_error": float(errors.mean()),
+        "mean_absolute_error": float(mean_absolute_error(y, predictions)),
         "mean_absolute_percent_error": float(mean_absolute_percentage_error(y, predictions) * 100),
         "r_squared": float(r2_score(y, predictions)),
         "mean_squared_error": float(mean_squared_error(y, predictions)),
@@ -78,10 +77,10 @@ def plot_shap(
     logger.info("Calculating SHAP values.")
     if subsample_shap:
         explainer = shap.Explainer(model, X_train.sample(frac=0.1).astype("float64"))
-        shap_values = explainer(X_test[: len(X_test) // 10])
+        shap_values = explainer(X_test[: len(X_test) // 10].astype("float64"))
     else:
         explainer = shap.Explainer(model, X_train.astype("float64"))
-        shap_values = explainer(X_test)
+        shap_values = explainer(X_test.astype("float64"))
 
     plt.figure()
     shap.plots.beeswarm(shap_values, show=False, max_display=100)
