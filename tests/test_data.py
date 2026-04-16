@@ -64,3 +64,41 @@ class TestPerSheetLag:
         assert pd.isna(result.loc[0, "feature_lag1"])
         assert result.loc[1, "feature_lag1"] == 10.0
         assert result.loc[2, "feature_lag1"] == 20.0
+
+
+import pytest
+from steel_flow.data import _sheet_split
+
+
+class TestSheetSplit:
+    def _make_df(self, sheets, rows_per_sheet=10):
+        import pandas as pd
+        return pd.DataFrame({
+            "label": sum(([s] * rows_per_sheet for s in sheets), []),
+            "x": range(len(sheets) * rows_per_sheet),
+        })
+
+    def test_no_overlap_between_partitions(self):
+        df = self._make_df(["A", "B", "C", "D", "E"])
+        train, val, test = _sheet_split(df)
+        assert not (set(train["label"]) & set(val["label"])), "train/val overlap"
+        assert not (set(train["label"]) & set(test["label"])), "train/test overlap"
+        assert not (set(val["label"]) & set(test["label"])), "val/test overlap"
+
+    def test_all_sheets_assigned(self):
+        sheets = ["A", "B", "C", "D", "E"]
+        df = self._make_df(sheets)
+        train, val, test = _sheet_split(df)
+        assigned = set(train["label"]) | set(val["label"]) | set(test["label"])
+        assert assigned == set(sheets)
+
+    def test_raises_with_fewer_than_three_sheets(self):
+        df = self._make_df(["A", "B"])
+        with pytest.raises(ValueError, match="at least 3"):
+            _sheet_split(df)
+
+    def test_test_set_contains_last_sheets_alphabetically(self):
+        """With 5 sheets A-E, n_test=1, test should be {E}."""
+        df = self._make_df(["C", "A", "E", "B", "D"])  # unsorted input
+        _, _, test = _sheet_split(df, test_frac=0.2)
+        assert set(test["label"]) == {"E"}

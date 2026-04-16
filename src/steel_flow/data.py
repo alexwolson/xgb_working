@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -29,6 +28,40 @@ FLOAT_COLUMNS = [
 def clean_column_name(name: str) -> str:
     """Replace non-alphanumeric characters with underscores."""
     return re.sub(r"[^a-zA-Z0-9_]", "_", name)
+
+
+def _sheet_split(
+    df: pd.DataFrame,
+    test_frac: float = 0.2,
+    val_frac: float = 0.2,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Split *df* into (train, val, test) partitions at the sheet level.
+
+    Sheets are sorted alphabetically for reproducibility. The last ``test_frac``
+    of sheets become test; the preceding ``val_frac`` of the remainder become
+    validation; the rest are training.  Raises ``ValueError`` if fewer than 3
+    distinct sheets are present.
+    """
+    unique_sheets = sorted(df["label"].unique())
+    n = len(unique_sheets)
+    if n < 3:
+        raise ValueError(
+            f"Need at least 3 distinct sheets for a train/val/test split, found {n}."
+        )
+    n_test = max(1, round(n * test_frac))
+    n_val = max(1, round((n - n_test) * val_frac))
+    if n - n_test - n_val < 1:
+        raise ValueError(
+            f"With {n} sheets, n_test={n_test} and n_val={n_val} leave no training data."
+        )
+    test_sheets = set(unique_sheets[-n_test:])
+    val_sheets = set(unique_sheets[-(n_test + n_val):-n_test])
+    train_sheets = set(unique_sheets[:-(n_test + n_val)])
+    return (
+        df[df["label"].isin(train_sheets)].copy(),
+        df[df["label"].isin(val_sheets)].copy(),
+        df[df["label"].isin(test_sheets)].copy(),
+    )
 
 
 def generate_csv_files(
@@ -180,15 +213,15 @@ def load_data(
     lagged_features: Optional[List[str]] = None,
     mould_position: bool = False,
     remove_rows: int = 0,
-) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess dataset for a given target variable.
 
-    Returns (train_df, test_df, feature_names, onehot_values).
-    Both DataFrames contain feature columns, the target column, and a 'set' column.
-    Note: DataFrames also contain a 'label' column (sheet name) used for splitting;
-    it is excluded from feature_names and should not be passed to the model.
-    Callers should index features with train_df[features] and target with train_df[target].
+    Returns (train_df, val_df, test_df, feature_names, onehot_values).
+    All three DataFrames contain feature columns, the target column, a 'set' column,
+    and a 'label' column (sheet name, excluded from feature_names).
+    val_df is for HPO evaluation; test_df is the held-out evaluation set.
+    Callers index features with df[features] and target with df[target].
     """
     encoding_type = "OneHot" if onehot_encoding else "Categorical"
     preprocess_details = (
@@ -277,16 +310,19 @@ def load_data(
     if combined_df.empty:
         raise ValueError("No valid data available after merging and dropping NAs.")
 
-    train_df, test_df = train_test_split(combined_df, test_size=0.2, random_state=42)
-    train_df = train_df.copy()
-    test_df = test_df.copy()
+    train_df, val_df, test_df = _sheet_split(combined_df)
     train_df["set"] = "train"
+    val_df["set"] = "val"
     test_df["set"] = "test"
 
-    full_df = pd.concat([train_df, test_df]).sort_index()
+    full_df = pd.concat([train_df, val_df, test_df]).sort_index()
     combined_file = f"{data_directory}/combined_{preprocess_details}_{target}.csv"
     full_df.to_csv(combined_file, index=False)
     logger.info(f"Exported combined data to {combined_file}")
-    logger.info(f"Data loaded: {train_df.shape[0]} train, {test_df.shape[0]} test samples.")
+    logger.info(
+        f"Data loaded: {len(train_df)} train ({train_df['label'].nunique()} sheets), "
+        f"{len(val_df)} val ({val_df['label'].nunique()} sheets), "
+        f"{len(test_df)} test ({test_df['label'].nunique()} sheets)."
+    )
 
-    return train_df, test_df, features, onehot_values
+    return train_df, val_df, test_df, features, onehot_values
