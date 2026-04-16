@@ -76,16 +76,17 @@ def predict_on_sheet(
 
     expected_cols = list(FLOAT_COLUMNS)
     nice_df = df.copy()
+    work_df = df.copy()
 
     if feature_lag != 0:
         for feature in lagged_features:
             for lag_amount in range(1, feature_lag + 1):
-                df[f"{feature}_lag{lag_amount}"] = df[feature].shift(lag_amount)
+                work_df[f"{feature}_lag{lag_amount}"] = work_df[feature].shift(lag_amount)
                 expected_cols.append(f"{feature}_lag{lag_amount}")
 
     actual_cols = {}
     for col in expected_cols:
-        matches = [c for c in df.columns if str(c).strip().lower() == col.lower()]
+        matches = [c for c in work_df.columns if str(c).strip().lower() == col.lower()]
         if not matches:
             logger.warning(f"Expected column '{col}' not found in sheet '{sheet_name}'.")
             logger.warning(f"Available columns: {df.columns.tolist()}")
@@ -95,7 +96,7 @@ def predict_on_sheet(
     predictions = []
     piv_preds = {"0-1": [], "1-2": [], "2-3": [], "3-4": []}
 
-    for idx, row in df.iterrows():
+    for idx, row in work_df.iterrows():
         try:
             if sen_geometrical:
                 sen_key = sheet_components[0][3:5]
