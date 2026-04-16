@@ -113,6 +113,9 @@ def generate_csv_files(
 
                 if sen_geometrical:
                     sen_key = sheet_components[0][3:5]
+                    if sen_key not in SEN_GEOMETRY:
+                        logger.warning(f"Unknown SEN key '{sen_key}' in sheet {sheet_name}. Skipping.")
+                        continue
                     angle = SEN_GEOMETRY[sen_key]["Angle"]
                     depth = SEN_GEOMETRY[sen_key]["Depth"]
 
@@ -176,7 +179,7 @@ def generate_csv_files(
         y_df.to_csv(f"{data_directory}/y{preprocess_details}.csv", index=False)
         logger.info(f"Successfully generated X{preprocess_details}.csv and y{preprocess_details}.csv.")
     else:
-        logger.warning(f"No data extracted. CSVs not created.")
+        logger.warning("No data extracted. CSVs not created.")
 
 
 def load_data(
@@ -193,7 +196,10 @@ def load_data(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess dataset for a given target variable.
+
     Returns (train_df, test_df, feature_names, onehot_values).
+    Both DataFrames contain feature columns, the target column, and a 'set' column.
+    Callers should index features with train_df[features] and target with train_df[target].
     """
     encoding_type = "OneHot" if onehot_encoding else "Categorical"
     preprocess_details = (
