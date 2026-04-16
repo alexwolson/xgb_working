@@ -1,10 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "steel-flow-sensor-prediction"
 version = "0.1.0"
-description = "Add your description here"
+description = "XGBoost pipeline for predicting steel flow sensor targets"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "matplotlib>=3.10.8",
-    "rich>=14.3.3",
+    "matplotlib",
+    "rich",
+    "xgboost",
+    "optuna",
+    "shap",
+    "scikit-learn",
+    "pandas",
+    "openpyxl",
+    "seaborn",
 ]
+
+[project.scripts]
+tune = "steel_flow.cli:tune"
+train = "steel_flow.cli:train"
+predict = "steel_flow.cli:predict"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/steel_flow"]
