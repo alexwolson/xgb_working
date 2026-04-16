@@ -108,3 +108,12 @@ class TestSheetSplit:
         assert len(set(test["label"])) == 2, f"Expected 2 test sheets, got {len(set(test['label']))}"
         assert len(set(val["label"])) == 2, f"Expected 2 val sheets, got {len(set(val['label']))}"
         assert len(set(train["label"])) == 6, f"Expected 6 train sheets, got {len(set(train['label']))}"
+
+    def test_minimum_three_sheets_works(self):
+        """Exactly 3 sheets should split into 1 train, 1 val, 1 test."""
+        df = self._make_df(["A", "B", "C"])
+        train, val, test = _sheet_split(df)
+        assert len(set(train["label"])) == 1
+        assert len(set(val["label"])) == 1
+        assert len(set(test["label"])) == 1
+        assert set(train["label"]) | set(val["label"]) | set(test["label"]) == {"A", "B", "C"}

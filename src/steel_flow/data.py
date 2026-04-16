@@ -281,6 +281,7 @@ def load_data(
 
     if discard_features:
         cleaned = [clean_column_name(f) for f in discard_features]
+        cleaned = [c for c in cleaned if c != "label"]  # protect the sheet identifier
         logger.info(f"Discarding features: {cleaned}")
         X_data.drop(columns=cleaned, errors="ignore", inplace=True)
 
