@@ -17,6 +17,7 @@ def train_model(
     study_name: str,
     best_params: Dict,
     onehot_encoding: bool = False,
+    objective: str = "reg:squarederror",
     models_dir: str = "data/output/models",
 ) -> xgb.XGBRegressor:
     """
@@ -31,8 +32,8 @@ def train_model(
         model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
         model.load_model(str(model_path))
     else:
-        logger.info(f"Training model for {study_name}")
-        model = xgb.XGBRegressor(**best_params, enable_categorical=not onehot_encoding)
+        logger.info(f"Training model for {study_name} (objective={objective})")
+        model = xgb.XGBRegressor(**best_params, objective=objective, enable_categorical=not onehot_encoding)
         model.fit(train_df[features], train_df[target])
         model.save_model(str(model_path))
         logger.info(f"Model saved to {model_path}")
