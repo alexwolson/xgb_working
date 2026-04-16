@@ -27,3 +27,8 @@ predict = "steel_flow.cli:predict"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/steel_flow"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
