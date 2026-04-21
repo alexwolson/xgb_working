@@ -12,5 +12,4 @@ source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index -r requirements-computecan.txt
 
-uv run predict --config-file config/training_config_NewFeaturesTest_20250625_try3.json \
---data-directory data
+uv run predict config/base.toml
