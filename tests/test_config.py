@@ -76,3 +76,44 @@ def test_default_path_used_when_no_arg(monkeypatch, tmp_path):
     with pytest.raises(SystemExit) as exc_info:
         load_config()
     assert "nonexistent.toml" in str(exc_info.value)
+
+
+def test_missing_key_raises_system_exit(tmp_path):
+    # [experiment] is missing the required "objective" key
+    content = """
+[experiment]
+targets = ["Count_EX1"]
+study_name = "test_study"
+
+[data]
+directory = "data/raw"
+discard_features = []
+onehot_encoding = false
+sen_geometrical = false
+clogging_factors = false
+lagged_features = []
+feature_lag_amount = 0
+mould_position = false
+remove_rows = 0
+
+[tune]
+study_count = 5
+tree_method = "hist"
+storage_path = "sqlite:///test.db"
+multithread = false
+
+[train]
+subsample_shap = true
+config_file = ""
+
+[predict]
+config_file = "config/training_config_test.json"
+data_directory = "New_Data"
+piv_data = false
+"""
+    p = tmp_path / "missing_key.toml"
+    p.write_text(content)
+    from steel_flow.config import load_config
+    with pytest.raises(SystemExit) as exc_info:
+        load_config(str(p))
+    assert "objective" in str(exc_info.value)

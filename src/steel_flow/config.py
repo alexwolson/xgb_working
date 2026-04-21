@@ -32,8 +32,11 @@ def load_config(path: str | None = None) -> SimpleNamespace:
     if not config_path.exists():
         sys.exit(f"Config file not found: {config_path}")
 
-    with open(config_path, "rb") as f:
-        raw = tomllib.load(f)
+    try:
+        with open(config_path, "rb") as f:
+            raw = tomllib.load(f)
+    except Exception as e:
+        sys.exit(f"Failed to parse config file {config_path}: {e}")
 
     for section, keys in _REQUIRED.items():
         if section not in raw:
