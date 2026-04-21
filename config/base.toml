@@ -1,0 +1,30 @@
+[experiment]
+targets = ["Count_EX1"]
+study_name = "water_modelling"
+objective = "reg:squarederror"
+
+[data]
+directory = "data/raw/Organized_Data"
+discard_features = []
+onehot_encoding = false
+sen_geometrical = false
+clogging_factors = false
+lagged_features = []
+feature_lag_amount = 0
+mould_position = false
+remove_rows = 0
+
+[tune]
+study_count = 1
+tree_method = "gpu_hist"
+storage_path = "sqlite:///water_modelling.db"
+multithread = false
+
+[train]
+subsample_shap = false
+config_file = ""
+
+[predict]
+config_file = "config/training_config_water_modelling.json"
+data_directory = "New_Data"
+piv_data = false
