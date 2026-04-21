@@ -88,6 +88,8 @@ uv run tune config/my_experiment.toml   # uses alternate config
 
 ### 4. Train Final Model
 
+Run after tuning is complete:
+
 ```bash
 uv run train
 ```
@@ -101,6 +103,13 @@ Set `predict.config_file` and `predict.data_directory` in your TOML, then:
 ```bash
 uv run predict
 ```
+
+### Results & Outputs
+
+1. **Models**: Saved in `data/output/models/` as `.json` files.
+2. **Figures**: Error histograms and SHAP plots saved in `data/output/figures/`.
+3. **Configs**: Training configuration JSON saved in `config/`.
+4. **Optuna Study**: Results stored in the database at `tune.storage_path` (default: `water_modelling.db`).
 
 ### Config Reference
 
