@@ -18,7 +18,7 @@ dependencies = [
     "pandas",
     "openpyxl",
     "seaborn",
-    "tomli>=2.4.1",
+    "tomli",
 ]
 
 [project.scripts]

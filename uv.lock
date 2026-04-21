@@ -1916,7 +1916,7 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "seaborn" },
     { name = "shap" },
-    { name = "tomli", specifier = ">=2.4.1" },
+    { name = "tomli" },
     { name = "xgboost" },
 ]
 
