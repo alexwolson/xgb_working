@@ -12,16 +12,17 @@ This repository provides a data processing and modeling pipeline for predicting 
    - Loads pre-generated `X.csv` and `y.csv`.  
    - Handles optional one-hot encoding of categorical variables.
    - Allows discarding specific features.  
-   - Splits data into training and testing sets.
+   - Splits data into train / validation / test sets at the **sheet level** — entire experimental runs go to one partition, preserving temporal independence.
 
 3. **Hyperparameter Optimization with Optuna**:  
    - Creates or reuses an Optuna study stored in `water_modelling.db`.  
-   - Optimizes XGBoost hyperparameters to minimize mean absolute error (MAE).
+   - Optimizes XGBoost hyperparameters to minimize MAE on the **validation set**. The held-out test set is never seen during tuning.
+   - Seeded TPE sampler (`seed=42`) for reproducible trial sequences.
 
 4. **Model Training & Evaluation**:  
    - Trains an XGBoost model using the best-found hyperparameters.  
    - Saves the trained model to `data/output/models/`.  
-   - Evaluates model performance on the test set and logs the MAE.
+   - Reports MAE, MAPE, R², and RMSE separately for train, validation, and held-out test sets.
 
 5. **Visualization & Explainability**:  
    - Saves error distribution plots (error histograms) in `data/output/figures/`.  
@@ -44,77 +45,95 @@ uv sync
 
 ## Usage
 
+All pipeline settings live in `config/base.toml`. Edit that file before running any command. To use an alternate config, pass its path as a positional argument.
+
 ### 1. Data Preparation
 
 Place raw `.xlsx` files under `data/raw/Organized_Data/` in the appropriate subdirectory structure (e.g., `SEN06/`, `SEN07/`). CSVs are generated automatically on first run.
 
-### 2. Hyperparameter Tuning
+### 2. Configure `config/base.toml`
 
-```bash
-uv run tune --targets Count_EX1 Count_EX2 \
-  --study-name MyStudy \
-  --study-count 100 \
-  --onehot-encoding \
-  --sen-geometrical \
-  --discard-features "time[s],SEN,L_wave_ht[mm]" \
-  --data-directory data/raw/Organized_Data
+Open `config/base.toml` and set your experiment parameters. Key fields:
+
+```toml
+[experiment]
+targets = ["Count_EX1", "Count_EX2"]   # target variables
+study_name = "MyStudy"                  # Optuna study name prefix
+objective = "reg:squarederror"          # XGBoost objective
+
+[data]
+directory = "data/raw/Organized_Data"
+discard_features = ["time[s]"]
+onehot_encoding = true
+sen_geometrical = true
+
+[tune]
+study_count = 100                       # number of Optuna trials
+tree_method = "gpu_hist"                # use "hist" on CPU-only machines
+
+[train]
+subsample_shap = true
+
+[predict]
+config_file = "config/training_config_MyStudy.json"
+data_directory = "New_Data"
 ```
 
-### 3. Train Final Model
+### 3. Hyperparameter Tuning
 
 ```bash
-uv run train --targets Count_EX1 Count_EX2 \
-  --study-name MyStudy \
-  --onehot-encoding \
-  --sen-geometrical \
-  --discard-features "time[s],SEN,L_wave_ht[mm]" \
-  --data-directory data/raw/Organized_Data \
-  --subsample-shap
+uv run tune                              # uses config/base.toml
+uv run tune config/my_experiment.toml   # uses alternate config
+```
+
+### 4. Train Final Model
+
+```bash
+uv run train
 ```
 
 Saves the model to `data/output/models/` and the training config to `config/`.
 
-### 4. Predict on New Data
+### 5. Predict on New Data
+
+Set `predict.config_file` and `predict.data_directory` in your TOML, then:
 
 ```bash
-uv run predict --config-file config/training_config_MyStudy.json \
-  --data-directory New_Data
+uv run predict
 ```
 
-### Arguments
+### Config Reference
 
-**`uv run tune` and `uv run train`**
-- `--targets`: Space-separated target variables (`Count_EX1`, `Count_EX2`). Default: `Count_EX1`.
-- `--study-name`: Optuna study name prefix. Default: `water_modelling`.
-- `--study-count`: Number of Optuna trials. Default: `1`.
-- `--onehot-encoding`: One-hot encode categorical features.
-- `--sen-geometrical`: Convert SEN numbers to angle/depth features.
-- `--clogging-factors`: Include clogging factors.
-- `--discard-features`: Comma-separated features to discard.
-- `--tree-method`: XGBoost tree method (`hist`, `gpu_hist`, etc.). Default: `gpu_hist`.
-- `--data-directory`: Directory with raw data. Default: `data/raw/Organized_Data`.
-- `--storage-path`: Optuna study storage path. Default: `sqlite:///water_modelling.db`.
-- `--multithread`: Use JournalStorage for HPC multithreading.
-- `--lagged-features`: Comma-separated features to lag.
-- `--feature-lag-amount`: Number of lag steps.
-- `--mould-position`: Include mould position as feature.
-- `--remove-rows`: Rows to remove from the end of each sheet.
+**`[experiment]`**
+- `targets`: List of target variables (`"Count_EX1"`, `"Count_EX2"`). Default: `["Count_EX1"]`.
+- `study_name`: Optuna study name prefix. Default: `"water_modelling"`.
+- `objective`: XGBoost objective (`"reg:squarederror"`, `"count:poisson"`, `"reg:tweedie"`). Default: `"reg:squarederror"`.
 
-**`uv run train` only**
-- `--subsample-shap`: Subsample SHAP values for faster computation.
-- `--config-file`: Output filename for training config JSON (saved to `config/`).
+**`[data]`**
+- `directory`: Directory with raw data. Default: `"data/raw/Organized_Data"`.
+- `discard_features`: List of features to discard. Default: `[]`.
+- `onehot_encoding`: One-hot encode categorical features. Default: `false`.
+- `sen_geometrical`: Convert SEN numbers to angle/depth features. Default: `false`.
+- `clogging_factors`: Include clogging factors. Default: `false`.
+- `lagged_features`: List of features to lag. Default: `[]`.
+- `feature_lag_amount`: Number of lag steps. Default: `0`.
+- `mould_position`: Include mould position as feature. Default: `false`.
+- `remove_rows`: Rows to remove from end of each sheet. Default: `0`.
 
-**`uv run predict`**
-- `--config-file`: Path to config JSON (e.g., `config/training_config_MyStudy.json`). Required.
-- `--data-directory`: Directory with new Excel files. Default: `New_Data`.
-- `--piv-data`: Data is PIV format.
+**`[tune]`**
+- `study_count`: Number of Optuna trials. Default: `1`.
+- `tree_method`: XGBoost tree method (`"hist"`, `"gpu_hist"`, etc.). Default: `"gpu_hist"`.
+- `storage_path`: Optuna study storage path. Default: `"sqlite:///water_modelling.db"`.
+- `multithread`: Use JournalStorage for HPC multithreading. Default: `false`.
 
-### Results & Outputs
+**`[train]`**
+- `subsample_shap`: Subsample SHAP values for faster computation. Default: `false`.
+- `config_file`: Output filename for training config JSON (saved to `config/`). Default: `""` (auto-derived as `training_config_<study_name>.json`).
 
-1. **Models**: Saved in `data/output/models/` as `.json` files.
-2. **Figures**: Error histograms and SHAP plots saved in `data/output/figures/`.
-3. **Configs**: Training configuration JSON saved in `config/`.
-4. **Optuna Study**: Results stored in the database at `--storage-path` (default: `water_modelling.db`).
+**`[predict]`**
+- `config_file`: Path to training config JSON produced by `uv run train`. Required.
+- `data_directory`: Directory with new Excel files. Default: `"New_Data"`.
+- `piv_data`: Data is PIV format. Default: `false`.
 
 ## Notes
 
@@ -123,6 +142,12 @@ The script leverages GPU acceleration if available via tree_method='gpu_hist'. A
 Ensure that all directory paths exist or are writable before running.
 
 When rerunning experiments, existing models and Optuna studies are reused unless removed or changed.
+
+**Data split:** Data is split at the sheet level — entire experimental runs (sheets) are assigned to train, validation, or test. The split is alphabetical: the last 20% of sheets (by name) go to test, the next 20% to validation, and the remainder to training. This preserves run independence and prevents temporal leakage.
+
+**CSV cache:** Preprocessed CSVs (`X.csv`, `y.csv`) are cached in `data/processed/`. The cache key includes a `v2_` prefix; if you have cached files from an older version of the pipeline, delete them to trigger regeneration.
+
+**MAPE with zero counts:** When the target contains zero values, MAPE is undefined for those rows. The pipeline logs how many zero-target rows were excluded and reports this count as `mape_zero_excluded` in the metrics output.
 
 # HPC Guide:
 
