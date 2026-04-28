@@ -107,18 +107,30 @@ def plot_shap(
     logger.info("Calculating SHAP values.")
 
     if subsample_shap:
-        background = X_train.sample(frac=0.1, random_state=42).astype("float64")
-        explain_set = X_test.sample(frac=0.1, random_state=42).astype("float64")
+        explain_set = X_test.sample(frac=0.1, random_state=42)
     else:
-        background = X_train.astype("float64")
-        explain_set = X_test.astype("float64")
+        explain_set = X_test
 
     n_explain = len(explain_set)
     n_test_total = len(X_test)
     sample_note = f"n={n_explain}" if not subsample_shap else f"n={n_explain} of {n_test_total}"
 
-    explainer = shap.Explainer(model, background)
-    shap_values = explainer(explain_set)
+    # shap.TreeExplainer is incompatible with XGBoost 3.x (base_score format changed).
+    # Use XGBoost's native pred_contribs instead, then wrap in shap.Explanation.
+    dm = xgb.DMatrix(explain_set, enable_categorical=True)
+    raw_contribs = model.get_booster().predict(dm, pred_contribs=True)
+    # raw_contribs: (n_samples, n_features + 1) — last col is bias/base_score
+
+    data_numeric = explain_set.copy()
+    for col in data_numeric.select_dtypes("category").columns:
+        data_numeric[col] = data_numeric[col].cat.codes
+
+    shap_values = shap.Explanation(
+        values=raw_contribs[:, :-1],
+        base_values=raw_contribs[:, -1],
+        data=data_numeric.values,
+        feature_names=explain_set.columns.tolist(),
+    )
 
     plt.figure()
     shap.plots.beeswarm(shap_values, show=False, max_display=100)

@@ -260,7 +260,7 @@ def load_data(
 
     for cat_col in CATEGORICAL_COLUMNS:
         if cat_col in X_data.columns:
-            X_data[cat_col] = X_data[cat_col].astype("category")
+            X_data[cat_col] = X_data[cat_col].astype(str).astype("category")
 
     onehot_values: Dict[str, List] = {}
     for cat_feature in CATEGORICAL_COLUMNS:

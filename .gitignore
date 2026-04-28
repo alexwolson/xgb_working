@@ -172,3 +172,13 @@ cython_debug/
 /X.csv
 /y.csv
 /training_config*
+local_test.db
+
+# macOS
+.DS_Store
+
+# Data archives
+*.zip
+
+# Local test configs
+config/training_config_local*.json
