@@ -20,7 +20,7 @@ exclude_subdirs = ["*Clog*"]
 [tune]
 study_count = 100
 tree_method = "hist"
-storage_path = "sqlite:///experiments.db"
+storage_path = "sqlite:///optuna/experiments.db"
 multithread = true
 
 [train]

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_study_name(cfg, target: str) -> str:
-    e, d = cfg.experiment, cfg.data
+    e, d, b = cfg.experiment, cfg.data, cfg.bins
     encoding_type = "OneHot" if d.onehot_encoding else "Categorical"
     return (
         f"{e.study_name}_{target}_{encoding_type}"
@@ -38,6 +38,7 @@ def _build_study_name(cfg, target: str) -> str:
         f"{'_Clogging' if d.clogging_factors else ''}"
         f"_{d.feature_lag_amount}Lag"
         f"{'_Mould' if d.mould_position else ''}"
+        f"{f'_{b.n_bins}Bin_{b.strategy}' if b.enabled else ''}"
     )
 
 
@@ -65,6 +66,15 @@ def tune() -> None:
             exclude_subdirs=d.exclude_subdirs,
         )
 
+        b = cfg.bins
+        bin_edges = None
+        if b.enabled:
+            bin_edges = data_mod.compute_bin_edges(train_df[target], b.n_bins, b.strategy)
+            train_df = train_df.copy()
+            train_df[target] = data_mod.apply_bins(train_df[target], bin_edges)
+            val_df = val_df.copy()
+            val_df[target] = data_mod.apply_bins(val_df[target], bin_edges)
+
         if w.enabled:
             run = wandb_utils.init_run(cfg, target, full_study_name)
             wandb_utils.save_run_id(full_study_name, run.id)
@@ -87,6 +97,8 @@ def tune() -> None:
             seed=42,
             objective=e.objective,
             wandb_callbacks=trial_callbacks,
+            binned=b.enabled,
+            n_bins=b.n_bins,
         )
 
         if run:
@@ -113,8 +125,9 @@ def train() -> None:
         else:
             run = None
 
+        Path("optuna").mkdir(exist_ok=True)
         storage = (
-            JournalStorage(JournalFileBackend(f"optuna_{full_study_name}.log"))
+            JournalStorage(JournalFileBackend(f"optuna/optuna_{full_study_name}.log"))
             if t.multithread
             else t.storage_path
         )
@@ -140,6 +153,17 @@ def train() -> None:
             remove_rows=d.remove_rows,
         )
 
+        b = cfg.bins
+        bin_edges = None
+        if b.enabled:
+            bin_edges = data_mod.compute_bin_edges(train_df[target], b.n_bins, b.strategy)
+            train_df = train_df.copy()
+            train_df[target] = data_mod.apply_bins(train_df[target], bin_edges)
+            val_df = val_df.copy()
+            val_df[target] = data_mod.apply_bins(val_df[target], bin_edges)
+            test_df = test_df.copy()
+            test_df[target] = data_mod.apply_bins(test_df[target], bin_edges)
+
         model = train_mod.train_model(
             train_df=train_df,
             features=features,
@@ -148,22 +172,32 @@ def train() -> None:
             best_params=best_params,
             onehot_encoding=d.onehot_encoding,
             objective=e.objective,
+            binned=b.enabled,
+            n_bins=b.n_bins,
         )
 
         X_train, y_train = train_df[features], train_df[target]
         X_val, y_val = val_df[features], val_df[target]
         X_test, y_test = test_df[features], test_df[target]
 
-        logger.info("Evaluating on held-out test set (never seen during HPO).")
-        test_metrics = eval_mod.compute_metrics(model, X_test, y_test)
-        logger.info("Evaluating on validation set.")
-        val_metrics = eval_mod.compute_metrics(model, X_val, y_val)
-        logger.info("Evaluating on train set.")
-        train_metrics = eval_mod.compute_metrics(model, X_train, y_train)
-
-        eval_mod.plot_error_histogram(model, X_test, y_test, full_study_name)
-        eval_mod.plot_shap(model, X_train, X_test, full_study_name, tr.subsample_shap)
-        eval_mod.plot_prediction_error(model, X_test, y_test, full_study_name)
+        if b.enabled:
+            logger.info("Evaluating on held-out test set (never seen during HPO).")
+            test_metrics = eval_mod.compute_classification_metrics(model, X_test, y_test)
+            logger.info("Evaluating on validation set.")
+            val_metrics = eval_mod.compute_classification_metrics(model, X_val, y_val)
+            logger.info("Evaluating on train set.")
+            train_metrics = eval_mod.compute_classification_metrics(model, X_train, y_train)
+            eval_mod.plot_confusion_matrix(model, X_test, y_test, b.n_bins, full_study_name)
+        else:
+            logger.info("Evaluating on held-out test set (never seen during HPO).")
+            test_metrics = eval_mod.compute_metrics(model, X_test, y_test)
+            logger.info("Evaluating on validation set.")
+            val_metrics = eval_mod.compute_metrics(model, X_val, y_val)
+            logger.info("Evaluating on train set.")
+            train_metrics = eval_mod.compute_metrics(model, X_train, y_train)
+            eval_mod.plot_error_histogram(model, X_test, y_test, full_study_name)
+            eval_mod.plot_shap(model, X_train, X_test, full_study_name, tr.subsample_shap)
+            eval_mod.plot_prediction_error(model, X_test, y_test, full_study_name)
 
         if run:
             wandb_utils.log_final_metrics(run, train_metrics, val_metrics, test_metrics)
@@ -195,6 +229,13 @@ def train() -> None:
         }
         if d.onehot_encoding:
             config["onehot_values"] = onehot_values
+        if b.enabled:
+            config["bins"] = {
+                "enabled": True,
+                "n_bins": b.n_bins,
+                "strategy": b.strategy,
+                "edges": bin_edges,
+            }
         training_configs.append(config)
 
     train_mod.save_training_config(training_configs, config_file)
@@ -238,8 +279,22 @@ def predict() -> None:
         lagged_features = config.get("lagged_features", [])
         mould_position = config.get("mould_position", False)
 
+        bins_config = config.get("bins", {})
+        binned = bins_config.get("enabled", False)
+        bin_labels = None
+        if binned:
+            n_bins = bins_config["n_bins"]
+            bin_labels = (
+                ["low", "medium", "high"]
+                if n_bins == 3
+                else [f"bin_{i}" for i in range(n_bins)]
+            )
+
         logger.info(f"Loading model from {model_file}")
-        model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
+        if binned:
+            model = xgb.XGBClassifier(enable_categorical=not onehot_encoding)
+        else:
+            model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
         try:
             model.load_model(model_file)
         except Exception as e:
@@ -261,6 +316,7 @@ def predict() -> None:
                     file_path, model, model_name, onehot_encoding, sen_geometrical,
                     clogging_factors, drop_cols, feature_lag, lagged_features,
                     onehot_values, mould_position, progress, progress_task, p.piv_data,
+                    bin_labels=bin_labels,
                 )
 
         logger.info(f"Predictions added using model {model_name}")

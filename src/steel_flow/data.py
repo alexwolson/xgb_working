@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
@@ -370,3 +371,37 @@ def load_data(
     )
 
     return train_df, val_df, test_df, features, onehot_values
+
+
+def compute_bin_edges(y_train: pd.Series, n_bins: int, strategy: str) -> list:
+    """Compute bin cut-points from training data.
+
+    Returns a list of (n_bins - 1) finite interior edges. Prepend -inf and
+    append +inf to get the full edge list for pd.cut.
+
+    strategies:
+        equal_frequency  — quantile-based; each bin contains ~equal training samples
+        equal_width      — linearly spaced between training min and max
+        log              — log-spaced via log1p/expm1 to handle zero counts
+    """
+    if strategy == "equal_frequency":
+        edges = np.quantile(y_train, np.linspace(0, 1, n_bins + 1))[1:-1]
+    elif strategy == "equal_width":
+        edges = np.linspace(float(y_train.min()), float(y_train.max()), n_bins + 1)[1:-1]
+    elif strategy == "log":
+        lo = np.log1p(float(y_train.min()))
+        hi = np.log1p(float(y_train.max()))
+        edges = np.expm1(np.linspace(lo, hi, n_bins + 1))[1:-1]
+    else:
+        raise ValueError(f"Unknown binning strategy: {strategy!r}")
+    return edges.tolist()
+
+
+def apply_bins(y: pd.Series, edges_inner: list) -> pd.Series:
+    """Map a continuous Series to integer bin labels 0..n_bins-1.
+
+    edges_inner should be the output of compute_bin_edges (no ±inf sentinels).
+    Values outside the training range are assigned to the outermost bins.
+    """
+    full_edges = [-np.inf] + list(edges_inner) + [np.inf]
+    return pd.cut(y, bins=full_edges, labels=False, include_lowest=True).astype(int)

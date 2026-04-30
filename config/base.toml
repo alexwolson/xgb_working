@@ -19,7 +19,7 @@ exclude_subdirs = []
 [tune]
 study_count = 1
 tree_method = "gpu_hist"
-storage_path = "sqlite:///water_modelling.db"
+storage_path = "sqlite:///optuna/water_modelling.db"
 multithread = false
 
 [train]
@@ -35,3 +35,8 @@ piv_data = false
 project = "steel-flow"
 entity = ""
 enabled = true
+
+[bins]
+enabled = false
+n_bins = 3
+strategy = "equal_frequency"   # "equal_frequency" | "equal_width" | "log"

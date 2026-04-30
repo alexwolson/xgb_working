@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import List
 
 import optuna
@@ -26,6 +27,8 @@ def run_study(
     seed: int = 42,
     objective: str = "reg:squarederror",
     wandb_callbacks: List = None,
+    binned: bool = False,
+    n_bins: int = 3,
 ) -> optuna.Study:
     """Run an Optuna hyperparameter search for XGBoost. Returns the completed study.
 
@@ -42,15 +45,18 @@ def run_study(
         multithread: Use JournalStorage instead of SQLite.
         seed: Random seed for the TPE sampler.
         objective: XGBoost objective function (e.g. 'reg:squarederror', 'count:poisson').
+        binned: If True, train a classifier and optimise for accuracy instead of MAE.
+        n_bins: Number of bins (classes) when binned=True.
 
     Returns:
         optuna.Study: The completed study object with best_trial and best_value populated.
     """
     logger.info(f"Starting Optuna study: {study_name}")
 
+    categorical_kwarg = {"enable_categorical": not onehot_encoding}
+
     def objective_fn(trial: optuna.Trial) -> float:
         params = {
-            "objective": objective,
             "booster": "gbtree",
             "verbosity": 0,
             "tree_method": tree_method,
@@ -64,13 +70,22 @@ def run_study(
             "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 1e3, log=True),
             "n_estimators": trial.suggest_int("n_estimators", 100, 1000, log=True),
         }
-        model = xgb.XGBRegressor(**params, enable_categorical=not onehot_encoding)
-        model.fit(train_df[features], train_df[target])
-        preds = model.predict(val_df[features])
-        return mean_absolute_error(val_df[target], preds)
+        if binned:
+            model = xgb.XGBClassifier(
+                **params, objective="multi:softmax", num_class=n_bins, **categorical_kwarg
+            )
+            model.fit(train_df[features], train_df[target])
+            preds = model.predict(val_df[features])
+            return mean_absolute_error(val_df[target], preds)
+        else:
+            model = xgb.XGBRegressor(**params, objective=objective, **categorical_kwarg)
+            model.fit(train_df[features], train_df[target])
+            preds = model.predict(val_df[features])
+            return mean_absolute_error(val_df[target], preds)
 
+    Path("optuna").mkdir(exist_ok=True)
     storage = (
-        JournalStorage(JournalFileBackend(f"optuna_{study_name}.log"))
+        JournalStorage(JournalFileBackend(f"optuna/optuna_{study_name}.log"))
         if multithread
         else storage_path
     )
@@ -91,6 +106,7 @@ def run_study(
         callbacks=wandb_callbacks or [],
     )
 
-    logger.info(f"Best trial: {study.best_trial.number}, val MAE: {study.best_value:.4f}")
+    metric_label = f"val MAE (bins): {study.best_value:.4f}" if binned else f"val MAE: {study.best_value:.4f}"
+    logger.info(f"Best trial: {study.best_trial.number}, {metric_label}")
     logger.info(f"Best params: {study.best_params}")
     return study

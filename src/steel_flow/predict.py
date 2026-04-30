@@ -43,9 +43,12 @@ def predict_on_sheet(
     onehot_values: Optional[Dict] = None,
     mould_position: bool = False,
     piv_data: bool = False,
+    bin_labels: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """
-    Add a prediction column to a single sheet DataFrame.
+    """Add a prediction column to a single sheet DataFrame.
+
+    When bin_labels is provided, integer classifier outputs are mapped to the
+    corresponding label string (e.g. ["low", "medium", "high"]).
     Returns updated DataFrame with model_name column appended.
     """
     if not piv_data:
@@ -171,7 +174,8 @@ def predict_on_sheet(
             features_df = features_df[correct_cols]
 
             try:
-                pred = model.predict(features_df)[0]
+                raw_pred = model.predict(features_df)[0]
+                pred = bin_labels[int(raw_pred)] if bin_labels is not None else raw_pred
             except Exception as e:
                 logger.error(f"Prediction error in row {idx} of sheet '{sheet_name}': {e}")
                 pred = None
@@ -207,6 +211,7 @@ def process_excel_file(
     progress: Optional[Progress] = None,
     progress_task: Optional[TaskID] = None,
     piv_data: bool = False,
+    bin_labels: Optional[List[str]] = None,
 ) -> None:
     """Process all sheets in an Excel file, writing predictions back to the file."""
     logger.info(f"Processing file: {file_path}")
@@ -225,7 +230,7 @@ def process_excel_file(
             df, file_name, sheet_name, model, model_name,
             onehot_encoding, sen_geometrical, clogging_factors,
             drop_cols, feature_lag, lagged_features, all_sheets,
-            onehot_values, mould_position, piv_data,
+            onehot_values, mould_position, piv_data, bin_labels=bin_labels,
         )
         updated_sheets[sheet_name] = updated_df
         if progress is not None and progress_task is not None:

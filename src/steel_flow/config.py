@@ -24,6 +24,9 @@ _REQUIRED: dict[str, list[str]] = {
     "wandb": ["project", "entity", "enabled"],
 }
 
+_VALID_BIN_STRATEGIES = {"equal_frequency", "equal_width", "log"}
+_BINS_DEFAULTS = {"enabled": False, "n_bins": 3, "strategy": "equal_frequency"}
+
 
 def load_config(path: str | None = None) -> SimpleNamespace:
     if path is None:
@@ -46,7 +49,17 @@ def load_config(path: str | None = None) -> SimpleNamespace:
             if key not in raw[section]:
                 sys.exit(f"Config [{section}] missing required key: {key}")
 
-    return SimpleNamespace(**{
+    cfg = SimpleNamespace(**{
         section: SimpleNamespace(**raw[section])
         for section in _REQUIRED
     })
+
+    bins_raw = {**_BINS_DEFAULTS, **raw.get("bins", {})}
+    if bins_raw["strategy"] not in _VALID_BIN_STRATEGIES:
+        sys.exit(
+            f"Config [bins] strategy must be one of {sorted(_VALID_BIN_STRATEGIES)}, "
+            f"got: {bins_raw['strategy']!r}"
+        )
+    cfg.bins = SimpleNamespace(**bins_raw)
+
+    return cfg

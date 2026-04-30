@@ -117,3 +117,69 @@ class TestSheetSplit:
         assert len(set(val["label"])) == 1
         assert len(set(test["label"])) == 1
         assert set(train["label"]) | set(val["label"]) | set(test["label"]) == {"A", "B", "C"}
+
+
+class TestComputeBinEdges:
+    def _y(self):
+        return pd.Series(range(1, 101), dtype=float)
+
+    def test_equal_frequency_edge_count(self):
+        from steel_flow.data import compute_bin_edges
+        edges = compute_bin_edges(self._y(), n_bins=4, strategy="equal_frequency")
+        assert len(edges) == 3
+
+    def test_equal_width_edge_count(self):
+        from steel_flow.data import compute_bin_edges
+        edges = compute_bin_edges(self._y(), n_bins=5, strategy="equal_width")
+        assert len(edges) == 4
+
+    def test_log_edge_count(self):
+        from steel_flow.data import compute_bin_edges
+        edges = compute_bin_edges(self._y(), n_bins=3, strategy="log")
+        assert len(edges) == 2
+
+    def test_edges_are_monotonically_increasing(self):
+        from steel_flow.data import compute_bin_edges
+        for strategy in ("equal_frequency", "equal_width", "log"):
+            edges = compute_bin_edges(self._y(), n_bins=4, strategy=strategy)
+            assert all(a < b for a, b in zip(edges, edges[1:])), strategy
+
+    def test_invalid_strategy_raises(self):
+        from steel_flow.data import compute_bin_edges
+        with pytest.raises(ValueError, match="Unknown binning strategy"):
+            compute_bin_edges(self._y(), n_bins=3, strategy="bad")
+
+    def test_edges_are_json_serializable(self):
+        import json
+        from steel_flow.data import compute_bin_edges
+        edges = compute_bin_edges(self._y(), n_bins=3, strategy="equal_frequency")
+        json.dumps(edges)
+
+
+class TestApplyBins:
+    def _y(self):
+        return pd.Series([0.0, 5.0, 10.0, 15.0, 20.0])
+
+    def test_all_values_assigned(self):
+        from steel_flow.data import apply_bins
+        result = apply_bins(self._y(), edges_inner=[8.0, 14.0])
+        assert result.notna().all()
+
+    def test_bin_labels_in_range(self):
+        from steel_flow.data import apply_bins
+        result = apply_bins(self._y(), edges_inner=[8.0, 14.0])
+        assert set(result).issubset({0, 1, 2})
+
+    def test_out_of_training_range_clamps_to_outermost_bin(self):
+        from steel_flow.data import apply_bins
+        y = pd.Series([-100.0, 0.0, 5.0, 10.0, 999.0])
+        result = apply_bins(y, edges_inner=[3.0, 7.0])
+        assert result.iloc[0] == 0
+        assert result.iloc[-1] == 2
+
+    def test_three_bins_three_labels(self):
+        from steel_flow.data import compute_bin_edges, apply_bins
+        y = pd.Series(range(1, 100), dtype=float)
+        edges = compute_bin_edges(y, n_bins=3, strategy="equal_frequency")
+        result = apply_bins(y, edges)
+        assert set(result) == {0, 1, 2}

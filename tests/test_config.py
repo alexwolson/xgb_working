@@ -85,6 +85,35 @@ def test_default_path_used_when_no_arg(monkeypatch, tmp_path):
     assert "nonexistent.toml" in str(exc_info.value)
 
 
+def test_bins_defaults_when_section_absent(tmp_path):
+    from steel_flow.config import load_config
+    cfg = load_config(str(_write_valid_toml(tmp_path)))
+    assert cfg.bins.enabled is False
+    assert cfg.bins.n_bins == 3
+    assert cfg.bins.strategy == "equal_frequency"
+
+
+def test_bins_section_overrides_defaults(tmp_path):
+    from steel_flow.config import load_config
+    base = _write_valid_toml(tmp_path).read_text()
+    p = tmp_path / "bins_config.toml"
+    p.write_text(base + "\n[bins]\nenabled = true\nn_bins = 5\nstrategy = \"log\"\n")
+    cfg = load_config(str(p))
+    assert cfg.bins.enabled is True
+    assert cfg.bins.n_bins == 5
+    assert cfg.bins.strategy == "log"
+
+
+def test_invalid_bins_strategy_raises_system_exit(tmp_path):
+    from steel_flow.config import load_config
+    base = _write_valid_toml(tmp_path).read_text()
+    p = tmp_path / "bad_bins.toml"
+    p.write_text(base + "\n[bins]\nenabled = true\nn_bins = 3\nstrategy = \"bad_strategy\"\n")
+    with pytest.raises(SystemExit) as exc_info:
+        load_config(str(p))
+    assert "bad_strategy" in str(exc_info.value)
+
+
 def test_missing_key_raises_system_exit(tmp_path):
     # [experiment] is missing the required "objective" key
     content = """

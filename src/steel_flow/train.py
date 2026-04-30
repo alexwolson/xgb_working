@@ -19,24 +19,42 @@ def train_model(
     onehot_encoding: bool = False,
     objective: str = "reg:squarederror",
     models_dir: str = "data/output/models",
-) -> xgb.XGBRegressor:
-    """
-    Train (or load cached) XGBoost model with given hyperparameters.
-    Saves model to models_dir/<study_name>.json. Returns the model.
+    binned: bool = False,
+    n_bins: int = 3,
+) -> xgb.XGBRegressor | xgb.XGBClassifier:
+    """Train (or load cached) XGBoost model with given hyperparameters.
+
+    When binned=True, trains an XGBClassifier with multi:softmax and n_bins classes
+    instead of the default XGBRegressor. Saves model to models_dir/<study_name>.json.
     """
     Path(models_dir).mkdir(parents=True, exist_ok=True)
     model_path = Path(models_dir) / f"{study_name}.json"
 
-    if model_path.exists():
-        logger.info(f"Loading cached model from {model_path}")
-        model = xgb.XGBRegressor(enable_categorical=not onehot_encoding)
-        model.load_model(str(model_path))
+    categorical_kwarg = {"enable_categorical": not onehot_encoding}
+
+    if binned:
+        cls_params = {**best_params, "objective": "multi:softmax", "num_class": n_bins}
+        if model_path.exists():
+            logger.info(f"Loading cached classifier from {model_path}")
+            model = xgb.XGBClassifier(**categorical_kwarg)
+            model.load_model(str(model_path))
+        else:
+            logger.info(f"Training classifier for {study_name} ({n_bins} bins)")
+            model = xgb.XGBClassifier(**cls_params, **categorical_kwarg)
+            model.fit(train_df[features], train_df[target])
+            model.save_model(str(model_path))
+            logger.info(f"Classifier saved to {model_path}")
     else:
-        logger.info(f"Training model for {study_name} (objective={objective})")
-        model = xgb.XGBRegressor(**best_params, objective=objective, enable_categorical=not onehot_encoding)
-        model.fit(train_df[features], train_df[target])
-        model.save_model(str(model_path))
-        logger.info(f"Model saved to {model_path}")
+        if model_path.exists():
+            logger.info(f"Loading cached model from {model_path}")
+            model = xgb.XGBRegressor(**categorical_kwarg)
+            model.load_model(str(model_path))
+        else:
+            logger.info(f"Training model for {study_name} (objective={objective})")
+            model = xgb.XGBRegressor(**best_params, objective=objective, **categorical_kwarg)
+            model.fit(train_df[features], train_df[target])
+            model.save_model(str(model_path))
+            logger.info(f"Model saved to {model_path}")
 
     return model
 

@@ -1,34 +1,33 @@
-# BLOCKED: requires data/raw/cloggedData dataset
 [experiment]
 targets = ["Count_EX1", "Count_EX2"]
-study_name = "final_clog"
+study_name = "bin_base_eq_freq_3"
 objective = "reg:squarederror"
 
 [data]
 directory = "data/raw/Organized_Data"
-discard_features = ["time[s]"]
+discard_features = []
 onehot_encoding = true
-sen_geometrical = true
-clogging_factors = true
+sen_geometrical = false
+clogging_factors = false
 lagged_features = []
 feature_lag_amount = 0
-mould_position = true
+mould_position = false
 remove_rows = 0
-include_subdirs = ["*Clog*"]
+include_subdirs = []
 exclude_subdirs = []
 
 [tune]
 study_count = 100
 tree_method = "hist"
-storage_path = "sqlite:///optuna/experiments.db"
-multithread = true
+storage_path = "sqlite:///optuna/experiments_binning.db"
+multithread = false
 
 [train]
-subsample_shap = true
+subsample_shap = false
 config_file = ""
 
 [predict]
-config_file = "config/training_config_final_clog.json"
+config_file = "config/training_config_bin_base_eq_freq_3.json"
 data_directory = "New_Data"
 piv_data = false
 
@@ -36,3 +35,8 @@ piv_data = false
 project = "steel-flow"
 entity = ""
 enabled = true
+
+[bins]
+enabled = true
+n_bins = 3
+strategy = "equal_frequency"

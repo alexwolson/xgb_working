@@ -27,6 +27,7 @@ tune = "steel_flow.cli:tune"
 train = "steel_flow.cli:train"
 predict = "steel_flow.cli:predict"
 replications = "steel_flow.replications:main"
+experiments = "steel_flow.experiments:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/steel_flow"]

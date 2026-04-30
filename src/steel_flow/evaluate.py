@@ -8,11 +8,18 @@ import seaborn as sns
 import shap
 import xgboost as xgb
 from sklearn.metrics import (
+    ConfusionMatrixDisplay,
     PredictionErrorDisplay,
+    accuracy_score,
+    cohen_kappa_score,
+    confusion_matrix,
+    f1_score,
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
     root_mean_squared_error,
 )
 
@@ -50,6 +57,61 @@ def compute_metrics(
     logger.info(f"R²: {metrics['r_squared']:.4f}")
     logger.info(f"RMSE: {metrics['root_mean_squared_error']:.4f}")
     return metrics
+
+
+def compute_classification_metrics(
+    model: xgb.XGBClassifier,
+    X: pd.DataFrame,
+    y: pd.Series,
+) -> dict:
+    """Compute classification metrics for a binned model.
+
+    Returns accuracy, macro/weighted F1, precision, recall, Cohen's kappa,
+    and MAE-of-bins (mean absolute distance between true and predicted bin index).
+    """
+    predictions = model.predict(X)
+    metrics = {
+        "accuracy": float(accuracy_score(y, predictions)),
+        "f1_macro": float(f1_score(y, predictions, average="macro", zero_division=0)),
+        "f1_weighted": float(f1_score(y, predictions, average="weighted", zero_division=0)),
+        "precision_macro": float(precision_score(y, predictions, average="macro", zero_division=0)),
+        "recall_macro": float(recall_score(y, predictions, average="macro", zero_division=0)),
+        "cohen_kappa": float(cohen_kappa_score(y, predictions)),
+        "mae_bins": float(mean_absolute_error(y, predictions)),
+    }
+    logger.info(f"Accuracy: {metrics['accuracy']:.4f}")
+    logger.info(f"F1 (macro): {metrics['f1_macro']:.4f}  F1 (weighted): {metrics['f1_weighted']:.4f}")
+    logger.info(f"Cohen's kappa: {metrics['cohen_kappa']:.4f}")
+    logger.info(f"MAE (bins): {metrics['mae_bins']:.4f}")
+    return metrics
+
+
+def plot_confusion_matrix(
+    model: xgb.XGBClassifier,
+    X: pd.DataFrame,
+    y: pd.Series,
+    n_bins: int,
+    study_name: str,
+    figures_dir: str = "data/output/figures",
+) -> None:
+    """Save a normalised confusion matrix heatmap PDF/PNG to figures_dir."""
+    Path(figures_dir).mkdir(parents=True, exist_ok=True)
+    predictions = model.predict(X)
+    labels = (
+        ["low", "medium", "high"]
+        if n_bins == 3
+        else [f"bin_{i}" for i in range(n_bins)]
+    )
+    cm = confusion_matrix(y, predictions, normalize="true")
+    fig, ax = plt.subplots(figsize=(max(4, n_bins), max(4, n_bins)))
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp.plot(ax=ax, colorbar=True, values_format=".2f")
+    ax.set_title(f"Confusion Matrix (normalised) — {study_name}")
+    plt.tight_layout()
+    plt.savefig(f"{figures_dir}/confusion_matrix_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/confusion_matrix_{study_name}.png", dpi=150)
+    plt.close()
+    logger.info(f"Confusion matrix saved to {figures_dir}/confusion_matrix_{study_name}.pdf")
 
 
 def plot_error_histogram(

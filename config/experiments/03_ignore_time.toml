@@ -19,7 +19,7 @@ exclude_subdirs = []
 [tune]
 study_count = 5
 tree_method = "hist"
-storage_path = "sqlite:///experiments.db"
+storage_path = "sqlite:///optuna/experiments.db"
 multithread = true
 
 [train]
