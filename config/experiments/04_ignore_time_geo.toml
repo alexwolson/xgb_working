@@ -1,14 +1,14 @@
 [experiment]
-targets = ["Count_EX1"]
-study_name = "local_test"
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "data_cleaned_ignore_time_geo"
 objective = "reg:squarederror"
 
 [data]
 directory = "data/raw/Organized_Data"
-discard_features = []
-onehot_encoding = false
-sen_geometrical = false
-clogging_factors = false
+discard_features = ["time[s]"]
+onehot_encoding = true
+sen_geometrical = true
+clogging_factors = true
 lagged_features = []
 feature_lag_amount = 0
 mould_position = false
@@ -17,21 +17,21 @@ include_subdirs = []
 exclude_subdirs = []
 
 [tune]
-study_count = 3
+study_count = 5
 tree_method = "hist"
-storage_path = "sqlite:///local_test.db"
-multithread = false
+storage_path = "sqlite:///experiments.db"
+multithread = true
 
 [train]
 subsample_shap = true
 config_file = ""
 
 [predict]
-config_file = "config/training_config_local_test.json"
+config_file = "config/training_config_data_cleaned_ignore_time_geo.json"
 data_directory = "New_Data"
 piv_data = false
 
 [wandb]
 project = "steel-flow"
 entity = ""
-enabled = false
+enabled = true

@@ -85,6 +85,7 @@ def plot_error_histogram(
 
     plt.tight_layout()
     plt.savefig(f"{figures_dir}/error_histogram_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/error_histogram_{study_name}.png", dpi=150)
     plt.close()
     logger.info(f"Error histogram saved to {figures_dir}/error_histogram_{study_name}.pdf")
 
@@ -138,6 +139,7 @@ def plot_shap(
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/shap_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/shap_{study_name}.png", dpi=150)
     plt.close()
 
     plt.figure()
@@ -146,6 +148,7 @@ def plot_shap(
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/shap_bar_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/shap_bar_{study_name}.png", dpi=150)
     plt.close()
     logger.info(f"SHAP plots saved to {figures_dir}/ ({sample_note})")
 
@@ -167,6 +170,7 @@ def plot_prediction_error(
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/error_plot_residuals_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/error_plot_residuals_{study_name}.png", dpi=150)
     plt.close()
 
     plt.figure()
@@ -175,5 +179,6 @@ def plot_prediction_error(
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)
     plt.savefig(f"{figures_dir}/error_plot_actuals_{study_name}.pdf")
+    plt.savefig(f"{figures_dir}/error_plot_actuals_{study_name}.png", dpi=150)
     plt.close()
     logger.info(f"Prediction error plots saved to {figures_dir}/")

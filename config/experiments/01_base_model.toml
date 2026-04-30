@@ -1,12 +1,12 @@
 [experiment]
-targets = ["Count_EX1"]
-study_name = "water_modelling"
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "base_model_try3"
 objective = "reg:squarederror"
 
 [data]
 directory = "data/raw/Organized_Data"
 discard_features = []
-onehot_encoding = false
+onehot_encoding = true
 sen_geometrical = false
 clogging_factors = false
 lagged_features = []
@@ -17,17 +17,17 @@ include_subdirs = []
 exclude_subdirs = []
 
 [tune]
-study_count = 1
-tree_method = "gpu_hist"
-storage_path = "sqlite:///water_modelling.db"
+study_count = 100
+tree_method = "hist"
+storage_path = "sqlite:///experiments.db"
 multithread = false
 
 [train]
-subsample_shap = false
+subsample_shap = true
 config_file = ""
 
 [predict]
-config_file = "config/training_config_water_modelling.json"
+config_file = "config/training_config_base_model_try3.json"
 data_directory = "New_Data"
 piv_data = false
 

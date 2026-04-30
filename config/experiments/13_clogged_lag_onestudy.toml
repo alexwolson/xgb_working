@@ -1,0 +1,43 @@
+# BLOCKED: requires data/raw/cloggedData dataset
+# NOTE: original run had --feature-lag-amount 10 without --lagged-features;
+# lagged_features is empty here to match that ambiguous behaviour (no lagging applied).
+[experiment]
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "clogged_lag_onestudy"
+objective = "reg:squarederror"
+
+[data]
+directory = "data/raw/Organized_Data"
+discard_features = [
+  "time[s]", "AN_1_LL[m/s]", "AN_2_LQ[m/s]", "AN_4_RR[m/s]",
+  "ML_LL[mm]", "ML_LQ[mm]", "ML_RR[mm]", "L_wave_ht[mm]", "R_wave_ht[mm]",
+]
+onehot_encoding = true
+sen_geometrical = true
+clogging_factors = true
+lagged_features = []
+feature_lag_amount = 10
+mould_position = true
+remove_rows = 0
+include_subdirs = ["*Clog*"]
+exclude_subdirs = []
+
+[tune]
+study_count = 1
+tree_method = "hist"
+storage_path = "sqlite:///experiments.db"
+multithread = true
+
+[train]
+subsample_shap = true
+config_file = ""
+
+[predict]
+config_file = "config/training_config_clogged_lag_onestudy.json"
+data_directory = "New_Data"
+piv_data = false
+
+[wandb]
+project = "steel-flow"
+entity = ""
+enabled = true

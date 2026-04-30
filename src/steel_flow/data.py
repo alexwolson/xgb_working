@@ -1,3 +1,4 @@
+import fnmatch
 import logging
 import re
 from pathlib import Path
@@ -64,6 +65,36 @@ def _sheet_split(
     )
 
 
+def _subdir_filter_tag(include: List[str], exclude: List[str]) -> str:
+    """Short deterministic tag encoding subdir filters, for cache-key use."""
+    parts = []
+    if include:
+        parts.append("inc_" + "+".join(re.sub(r"[^a-zA-Z0-9]", "", p) for p in sorted(include)))
+    if exclude:
+        parts.append("exc_" + "+".join(re.sub(r"[^a-zA-Z0-9]", "", p) for p in sorted(exclude)))
+    return ("_" + "_".join(parts)) if parts else ""
+
+
+def _filter_excel_files(
+    files: List[Path],
+    root: Path,
+    include_subdirs: List[str],
+    exclude_subdirs: List[str],
+) -> List[Path]:
+    """Filter file list by whether the first subdir under root matches include/exclude patterns."""
+    if not include_subdirs and not exclude_subdirs:
+        return files
+    result = []
+    for f in files:
+        top = f.relative_to(root).parts[0]
+        if include_subdirs and not any(fnmatch.fnmatch(top, p) for p in include_subdirs):
+            continue
+        if exclude_subdirs and any(fnmatch.fnmatch(top, p) for p in exclude_subdirs):
+            continue
+        result.append(f)
+    return result
+
+
 def generate_csv_files(
     data_directory: str,
     preprocess_details: str,
@@ -71,6 +102,8 @@ def generate_csv_files(
     clogging_factors: bool = False,
     mould_position: bool = False,
     remove_rows: int = 0,
+    include_subdirs: Optional[List[str]] = None,
+    exclude_subdirs: Optional[List[str]] = None,
 ) -> None:
     """Generate X<suffix>.csv and y<suffix>.csv from Excel files in data_directory."""
     tabular_root = Path(data_directory)
@@ -81,6 +114,11 @@ def generate_csv_files(
     logger.info(f"Generating X{preprocess_details}.csv and y{preprocess_details}.csv from raw data.")
 
     excel_files = list(tabular_root.glob("**/*.xlsx"))
+    excel_files = _filter_excel_files(
+        excel_files, tabular_root,
+        include_subdirs or [],
+        exclude_subdirs or [],
+    )
 
     if not excel_files:
         logger.warning("No Excel files found. No CSVs generated.")
@@ -213,6 +251,8 @@ def load_data(
     lagged_features: Optional[List[str]] = None,
     mould_position: bool = False,
     remove_rows: int = 0,
+    include_subdirs: Optional[List[str]] = None,
+    exclude_subdirs: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str], Dict[str, List]]:
     """
     Load and preprocess dataset for a given target variable.
@@ -230,6 +270,7 @@ def load_data(
         f"{'_Clogging' if clogging_factors else ''}"
         f"{'_Mould' if mould_position else ''}"
         f"{f'_removed{remove_rows}' if remove_rows != 0 else ''}"
+        f"{_subdir_filter_tag(include_subdirs or [], exclude_subdirs or [])}"
     )
 
     x_path = Path(f"{data_directory}/X{preprocess_details}.csv")
@@ -244,6 +285,8 @@ def load_data(
             mould_position=mould_position,
             preprocess_details=preprocess_details,
             remove_rows=remove_rows,
+            include_subdirs=include_subdirs,
+            exclude_subdirs=exclude_subdirs,
         )
 
     if not x_path.exists() or not y_path.exists():

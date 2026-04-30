@@ -16,11 +16,12 @@ _REQUIRED: dict[str, list[str]] = {
     "data": [
         "directory", "discard_features", "onehot_encoding", "sen_geometrical",
         "clogging_factors", "lagged_features", "feature_lag_amount",
-        "mould_position", "remove_rows",
+        "mould_position", "remove_rows", "include_subdirs", "exclude_subdirs",
     ],
     "tune": ["study_count", "tree_method", "storage_path", "multithread"],
     "train": ["subsample_shap", "config_file"],
     "predict": ["config_file", "data_directory", "piv_data"],
+    "wandb": ["project", "entity", "enabled"],
 }
 
 

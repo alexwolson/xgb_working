@@ -1,14 +1,14 @@
 [experiment]
-targets = ["Count_EX1"]
-study_name = "water_modelling"
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "data_cleaned_ignore_time_only"
 objective = "reg:squarederror"
 
 [data]
 directory = "data/raw/Organized_Data"
-discard_features = []
-onehot_encoding = false
+discard_features = ["time[s]"]
+onehot_encoding = true
 sen_geometrical = false
-clogging_factors = false
+clogging_factors = true
 lagged_features = []
 feature_lag_amount = 0
 mould_position = false
@@ -17,17 +17,17 @@ include_subdirs = []
 exclude_subdirs = []
 
 [tune]
-study_count = 1
-tree_method = "gpu_hist"
-storage_path = "sqlite:///water_modelling.db"
-multithread = false
+study_count = 5
+tree_method = "hist"
+storage_path = "sqlite:///experiments.db"
+multithread = true
 
 [train]
-subsample_shap = false
+subsample_shap = true
 config_file = ""
 
 [predict]
-config_file = "config/training_config_water_modelling.json"
+config_file = "config/training_config_data_cleaned_ignore_time_only.json"
 data_directory = "New_Data"
 piv_data = false
 

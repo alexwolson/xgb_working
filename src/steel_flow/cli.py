@@ -16,6 +16,7 @@ from steel_flow import evaluate as eval_mod
 from steel_flow import predict as predict_mod
 from steel_flow import train as train_mod
 from steel_flow import tune as tune_mod
+from steel_flow import wandb_utils
 from steel_flow.config import load_config
 
 console = Console()
@@ -43,7 +44,7 @@ def _build_study_name(cfg, target: str) -> str:
 def tune() -> None:
     """Entry point for `uv run tune [config_path]`."""
     cfg = load_config()
-    e, d, t = cfg.experiment, cfg.data, cfg.tune
+    e, d, t, w = cfg.experiment, cfg.data, cfg.tune, cfg.wandb
 
     for target in e.targets:
         full_study_name = _build_study_name(cfg, target)
@@ -60,7 +61,17 @@ def tune() -> None:
             lagged_features=d.lagged_features,
             mould_position=d.mould_position,
             remove_rows=d.remove_rows,
+            include_subdirs=d.include_subdirs,
+            exclude_subdirs=d.exclude_subdirs,
         )
+
+        if w.enabled:
+            run = wandb_utils.init_run(cfg, target, full_study_name)
+            wandb_utils.save_run_id(full_study_name, run.id)
+            trial_callbacks = [wandb_utils.make_trial_callback(run)]
+        else:
+            run = None
+            trial_callbacks = []
 
         tune_mod.run_study(
             train_df=train_df,
@@ -75,7 +86,11 @@ def tune() -> None:
             multithread=t.multithread,
             seed=42,
             objective=e.objective,
+            wandb_callbacks=trial_callbacks,
         )
+
+        if run:
+            run.finish()
 
     logger.info("Tuning complete.")
 
@@ -83,7 +98,7 @@ def tune() -> None:
 def train() -> None:
     """Entry point for `uv run train [config_path]`."""
     cfg = load_config()
-    e, d, t, tr = cfg.experiment, cfg.data, cfg.tune, cfg.train
+    e, d, t, tr, w = cfg.experiment, cfg.data, cfg.tune, cfg.train, cfg.wandb
 
     config_file = tr.config_file or f"training_config_{e.study_name}.json"
     training_configs = []
@@ -92,6 +107,12 @@ def train() -> None:
         full_study_name = _build_study_name(cfg, target)
         logger.info(f"Training for target: {target} — study: {full_study_name}")
 
+        if w.enabled:
+            run_id = wandb_utils.load_run_id(full_study_name)
+            run = wandb_utils.resume_run(run_id, cfg, target, full_study_name)
+        else:
+            run = None
+
         storage = (
             JournalStorage(JournalFileBackend(f"optuna_{full_study_name}.log"))
             if t.multithread
@@ -99,6 +120,12 @@ def train() -> None:
         )
         study = optuna.load_study(study_name=full_study_name, storage=storage)
         best_params = study.best_trial.params
+
+        if run:
+            run.config.update(
+                {f"best_params/{k}": v for k, v in best_params.items()},
+                allow_val_change=True,
+            )
 
         train_df, val_df, test_df, features, onehot_values = data_mod.load_data(
             target=target,
@@ -137,6 +164,12 @@ def train() -> None:
         eval_mod.plot_error_histogram(model, X_test, y_test, full_study_name)
         eval_mod.plot_shap(model, X_train, X_test, full_study_name, tr.subsample_shap)
         eval_mod.plot_prediction_error(model, X_test, y_test, full_study_name)
+
+        if run:
+            wandb_utils.log_final_metrics(run, train_metrics, val_metrics, test_metrics)
+            wandb_utils.log_plots(run, full_study_name)
+            wandb_utils.log_model_artifact(run, full_study_name)
+            run.finish()
 
         config = {
             "target": target,

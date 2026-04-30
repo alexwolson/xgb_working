@@ -20,6 +20,8 @@ lagged_features = []
 feature_lag_amount = 0
 mould_position = false
 remove_rows = 0
+include_subdirs = []
+exclude_subdirs = []
 
 [tune]
 study_count = 5
@@ -35,6 +37,11 @@ config_file = ""
 config_file = "config/training_config_test.json"
 data_directory = "New_Data"
 piv_data = false
+
+[wandb]
+project = "test-project"
+entity = ""
+enabled = false
 """
     p = tmp_path / "test_config.toml"
     p.write_text(content)
@@ -95,6 +102,8 @@ lagged_features = []
 feature_lag_amount = 0
 mould_position = false
 remove_rows = 0
+include_subdirs = []
+exclude_subdirs = []
 
 [tune]
 study_count = 5
@@ -110,6 +119,11 @@ config_file = ""
 config_file = "config/training_config_test.json"
 data_directory = "New_Data"
 piv_data = false
+
+[wandb]
+project = "test-project"
+entity = ""
+enabled = false
 """
     p = tmp_path / "missing_key.toml"
     p.write_text(content)

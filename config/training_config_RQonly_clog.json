@@ -1,0 +1,178 @@
+[
+    {
+        "target": "Count_EX1",
+        "onehot_encoding": true,
+        "sen_geometrical": true,
+        "clogging_factors": true,
+        "discard_features": [
+            "time[s]",
+            "AN_1_LL[m/s]",
+            "AN_2_LQ[m/s]",
+            "AN_4_RR[m/s]",
+            "ML_LL[mm]",
+            "ML_LQ[mm]",
+            "ML_RR[mm]",
+            "L_wave_ht[mm]",
+            "R_wave_ht[mm]"
+        ],
+        "data_directory": "data/raw/Organized_Data",
+        "model_save_location": "data/output/models/RQonly_clog_Count_EX1_OneHot_Geometrical_Clogging_0Lag_Mould.json",
+        "tree_method": "hist",
+        "objective": "reg:squarederror",
+        "study_name": "RQonly_clog_Count_EX1_OneHot_Geometrical_Clogging_0Lag_Mould",
+        "storage_path": "sqlite:///experiments.db",
+        "multithread": true,
+        "study_count": 100,
+        "feature_lag": 0,
+        "lagged_features": [],
+        "mould_position": true,
+        "remove_rows": 0,
+        "test": {
+            "mean_absolute_error": 44.13360498388597,
+            "mean_absolute_percent_error": 64.47966495288384,
+            "r_squared": -0.36454027607061,
+            "mean_squared_error": 4830.998964037779,
+            "root_mean_squared_error": 69.50538802163311,
+            "mape_zero_excluded": 0
+        },
+        "val": {
+            "mean_absolute_error": 23.400575800929715,
+            "mean_absolute_percent_error": 77.17550035554328,
+            "r_squared": -0.0610325052811338,
+            "mean_squared_error": 1183.8204853328161,
+            "root_mean_squared_error": 34.40669244976646,
+            "mape_zero_excluded": 0
+        },
+        "train": {
+            "mean_absolute_error": 22.21680584949804,
+            "mean_absolute_percent_error": 135.2572766284915,
+            "r_squared": 0.17363289138290283,
+            "mean_squared_error": 1029.6636309322437,
+            "root_mean_squared_error": 32.0883722075808,
+            "mape_zero_excluded": 0
+        },
+        "onehot_values": {
+            "Angle": [
+                "-15",
+                "0",
+                "15"
+            ],
+            "Depth": [
+                "0",
+                "20",
+                "40"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.4",
+                "1.8"
+            ],
+            "airflow": [
+                "1",
+                "3",
+                "6"
+            ],
+            "CF": [
+                "0",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ],
+            "mould_pos": [
+                "0-1",
+                "1-2",
+                "2-3",
+                "3-4"
+            ]
+        }
+    },
+    {
+        "target": "Count_EX2",
+        "onehot_encoding": true,
+        "sen_geometrical": true,
+        "clogging_factors": true,
+        "discard_features": [
+            "time[s]",
+            "AN_1_LL[m/s]",
+            "AN_2_LQ[m/s]",
+            "AN_4_RR[m/s]",
+            "ML_LL[mm]",
+            "ML_LQ[mm]",
+            "ML_RR[mm]",
+            "L_wave_ht[mm]",
+            "R_wave_ht[mm]"
+        ],
+        "data_directory": "data/raw/Organized_Data",
+        "model_save_location": "data/output/models/RQonly_clog_Count_EX2_OneHot_Geometrical_Clogging_0Lag_Mould.json",
+        "tree_method": "hist",
+        "objective": "reg:squarederror",
+        "study_name": "RQonly_clog_Count_EX2_OneHot_Geometrical_Clogging_0Lag_Mould",
+        "storage_path": "sqlite:///experiments.db",
+        "multithread": true,
+        "study_count": 100,
+        "feature_lag": 0,
+        "lagged_features": [],
+        "mould_position": true,
+        "remove_rows": 0,
+        "test": {
+            "mean_absolute_error": 42.193872242912995,
+            "mean_absolute_percent_error": 61.036599020892126,
+            "r_squared": -0.34089303573729657,
+            "mean_squared_error": 4187.812595696633,
+            "root_mean_squared_error": 64.71331080772049,
+            "mape_zero_excluded": 0
+        },
+        "val": {
+            "mean_absolute_error": 17.069390977773157,
+            "mean_absolute_percent_error": 50.21812359268131,
+            "r_squared": 0.05836104876384074,
+            "mean_squared_error": 803.2170934610673,
+            "root_mean_squared_error": 28.341084902682667,
+            "mape_zero_excluded": 0
+        },
+        "train": {
+            "mean_absolute_error": 15.897465283726383,
+            "mean_absolute_percent_error": 67.75294370920253,
+            "r_squared": 0.31874457667832545,
+            "mean_squared_error": 590.3557585688334,
+            "root_mean_squared_error": 24.29723767362935,
+            "mape_zero_excluded": 0
+        },
+        "onehot_values": {
+            "Angle": [
+                "-15",
+                "0",
+                "15"
+            ],
+            "Depth": [
+                "0",
+                "20",
+                "40"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.4",
+                "1.8"
+            ],
+            "airflow": [
+                "1",
+                "3",
+                "6"
+            ],
+            "CF": [
+                "0",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ],
+            "mould_pos": [
+                "0-1",
+                "1-2",
+                "2-3",
+                "3-4"
+            ]
+        }
+    }
+]

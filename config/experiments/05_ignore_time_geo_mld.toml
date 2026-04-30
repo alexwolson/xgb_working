@@ -1,0 +1,37 @@
+[experiment]
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "data_cleaned_ignore_time_geo_mld"
+objective = "reg:squarederror"
+
+[data]
+directory = "data/raw/Organized_Data"
+discard_features = ["time[s]"]
+onehot_encoding = true
+sen_geometrical = true
+clogging_factors = true
+lagged_features = []
+feature_lag_amount = 0
+mould_position = true
+remove_rows = 0
+include_subdirs = []
+exclude_subdirs = []
+
+[tune]
+study_count = 5
+tree_method = "hist"
+storage_path = "sqlite:///experiments.db"
+multithread = true
+
+[train]
+subsample_shap = true
+config_file = ""
+
+[predict]
+config_file = "config/training_config_data_cleaned_ignore_time_geo_mld.json"
+data_directory = "New_Data"
+piv_data = false
+
+[wandb]
+project = "steel-flow"
+entity = ""
+enabled = true

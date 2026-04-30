@@ -1,0 +1,41 @@
+# BLOCKED: requires data/raw/bub_200_rm dataset (last 200 rows removed per sheet)
+[experiment]
+targets = ["Count_EX1", "Count_EX2"]
+study_name = "200rm"
+objective = "reg:squarederror"
+
+[data]
+directory = "data/raw/Organized_Data"
+discard_features = ["time[s]"]
+onehot_encoding = true
+sen_geometrical = true
+clogging_factors = true
+lagged_features = [
+  "AN_1_LL[m/s]", "AN_2_LQ[m/s]", "AN_3_RQ[m/s]", "AN_4_RR[m/s]",
+  "ML_LL[mm]", "ML_LQ[mm]", "ML_RQ[mm]", "ML_RR[mm]",
+]
+feature_lag_amount = 10
+mould_position = true
+remove_rows = 200
+include_subdirs = []
+exclude_subdirs = []
+
+[tune]
+study_count = 100
+tree_method = "hist"
+storage_path = "sqlite:///experiments.db"
+multithread = true
+
+[train]
+subsample_shap = true
+config_file = ""
+
+[predict]
+config_file = "config/training_config_200rm.json"
+data_directory = "New_Data"
+piv_data = false
+
+[wandb]
+project = "steel-flow"
+entity = ""
+enabled = true

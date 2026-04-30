@@ -1,0 +1,140 @@
+[
+    {
+        "target": "Count_EX1",
+        "onehot_encoding": true,
+        "sen_geometrical": false,
+        "clogging_factors": true,
+        "discard_features": [],
+        "data_directory": "data/raw/Organized_Data",
+        "model_save_location": "data/output/models/08-17-data-cleaned_Count_EX1_OneHot_Clogging_0Lag.json",
+        "tree_method": "hist",
+        "objective": "reg:squarederror",
+        "study_name": "08-17-data-cleaned_Count_EX1_OneHot_Clogging_0Lag",
+        "storage_path": "sqlite:///experiments.db",
+        "multithread": true,
+        "study_count": 100,
+        "feature_lag": 0,
+        "lagged_features": [],
+        "mould_position": false,
+        "remove_rows": 0,
+        "test": {
+            "mean_absolute_error": 45.06046934386685,
+            "mean_absolute_percent_error": 62.10008043205754,
+            "r_squared": -0.4078113837580075,
+            "mean_squared_error": 4984.195377567288,
+            "root_mean_squared_error": 70.59883410912173,
+            "mape_zero_excluded": 0
+        },
+        "val": {
+            "mean_absolute_error": 23.267998406911413,
+            "mean_absolute_percent_error": 74.94591854564896,
+            "r_squared": -0.07532114837508663,
+            "mean_squared_error": 1199.7626815596404,
+            "root_mean_squared_error": 34.63759058536896,
+            "mape_zero_excluded": 0
+        },
+        "train": {
+            "mean_absolute_error": 21.265552268700485,
+            "mean_absolute_percent_error": 128.66469260475714,
+            "r_squared": 0.23158755168093104,
+            "mean_squared_error": 957.4514079024875,
+            "root_mean_squared_error": 30.942711708938624,
+            "mape_zero_excluded": 0
+        },
+        "onehot_values": {
+            "SEN": [
+                "SEN06",
+                "SEN07",
+                "SEN08",
+                "SEN09",
+                "SEN10"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.4",
+                "1.8"
+            ],
+            "airflow": [
+                "1",
+                "3",
+                "6"
+            ],
+            "CF": [
+                "0",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ]
+        }
+    },
+    {
+        "target": "Count_EX2",
+        "onehot_encoding": true,
+        "sen_geometrical": false,
+        "clogging_factors": true,
+        "discard_features": [],
+        "data_directory": "data/raw/Organized_Data",
+        "model_save_location": "data/output/models/08-17-data-cleaned_Count_EX2_OneHot_Clogging_0Lag.json",
+        "tree_method": "hist",
+        "objective": "reg:squarederror",
+        "study_name": "08-17-data-cleaned_Count_EX2_OneHot_Clogging_0Lag",
+        "storage_path": "sqlite:///experiments.db",
+        "multithread": true,
+        "study_count": 100,
+        "feature_lag": 0,
+        "lagged_features": [],
+        "mould_position": false,
+        "remove_rows": 0,
+        "test": {
+            "mean_absolute_error": 42.103671573171596,
+            "mean_absolute_percent_error": 52.12056702859756,
+            "r_squared": -0.34171582153752866,
+            "mean_squared_error": 4190.382280709486,
+            "root_mean_squared_error": 64.73316214050945,
+            "mape_zero_excluded": 0
+        },
+        "val": {
+            "mean_absolute_error": 16.36421906687429,
+            "mean_absolute_percent_error": 42.19373076990705,
+            "r_squared": 0.021917949136901593,
+            "mean_squared_error": 834.3030213749827,
+            "root_mean_squared_error": 28.884304065962585,
+            "mape_zero_excluded": 0
+        },
+        "train": {
+            "mean_absolute_error": 16.4547563176363,
+            "mean_absolute_percent_error": 64.41661120675258,
+            "r_squared": 0.2512536807072864,
+            "mean_squared_error": 648.8413686990293,
+            "root_mean_squared_error": 25.472364803822774,
+            "mape_zero_excluded": 0
+        },
+        "onehot_values": {
+            "SEN": [
+                "SEN06",
+                "SEN07",
+                "SEN08",
+                "SEN09",
+                "SEN10"
+            ],
+            "waterflow": [
+                "1.2",
+                "1.4",
+                "1.8"
+            ],
+            "airflow": [
+                "1",
+                "3",
+                "6"
+            ],
+            "CF": [
+                "0",
+                "LClog75",
+                "LClog80",
+                "LClog85",
+                "RClog90"
+            ]
+        }
+    }
+]

@@ -25,6 +25,7 @@ def run_study(
     multithread: bool = False,
     seed: int = 42,
     objective: str = "reg:squarederror",
+    wandb_callbacks: List = None,
 ) -> optuna.Study:
     """Run an Optuna hyperparameter search for XGBoost. Returns the completed study.
 
@@ -82,7 +83,13 @@ def run_study(
         load_if_exists=True,
         sampler=sampler,
     )
-    study.optimize(objective_fn, n_trials=study_count, gc_after_trial=True, show_progress_bar=True)
+    study.optimize(
+        objective_fn,
+        n_trials=study_count,
+        gc_after_trial=True,
+        show_progress_bar=True,
+        callbacks=wandb_callbacks or [],
+    )
 
     logger.info(f"Best trial: {study.best_trial.number}, val MAE: {study.best_value:.4f}")
     logger.info(f"Best params: {study.best_params}")
