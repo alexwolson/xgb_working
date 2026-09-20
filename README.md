@@ -1,3 +1,8 @@
+> **⚠️ Archived — superseded by [`alexwolson/steel-flow`](https://github.com/alexwolson/steel-flow).**
+>
+> The final code from this repository has been consolidated into the canonical
+> `steel-flow` monorepo. This repository is kept read-only for historical reference.
+
 # Project Overview
 
 This repository provides a data processing and modelling pipeline for predicting target variables (`Count_EX1` or `Count_EX2`) from sensor-based time series data. The pipeline automates data extraction, cleaning, feature engineering, hyperparameter optimisation (Optuna), model training (XGBoost), evaluation, and visualisation (error distributions, SHAP explanations, confusion matrices).
